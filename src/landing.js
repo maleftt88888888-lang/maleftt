@@ -4,7 +4,7 @@ export function getLandingHtml() {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>iOS Location Spoofer · 虚拟定位</title>
+<title>iPhone 虚拟定位</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0c11">
 <link rel="apple-touch-icon" href="/icon-180.png">
@@ -32,22 +32,11 @@ body{
   padding:20px 16px calc(44px + env(safe-area-inset-bottom)); 
 }
 
-/* --- disclaimer --- */
-.disc{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 16px; margin-bottom:18px; }
-.disc-t{ font-size:13px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--cyan); margin-bottom:9px; }
-.disc-list{ margin:0; padding-left:17px; }
-.disc-list li{ font-size:12px; color:var(--muted); line-height:1.75; margin-bottom:6px; }
-.disc-list li b{ color:#c3ccdb; }
-
 /* --- header / branding --- */
-header{ text-align:center; padding:8px 0 6px; }
+header{ text-align:center; padding:12px 0 8px; }
 header .logowrap{ position:relative; width:74px; margin:0 auto 14px; }
 header .logo{ width:74px; height:74px; border-radius:20px; display:block; box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(23,195,207,.28); }
-h1{ font-size:23px; font-weight:800; letter-spacing:.3px; background:linear-gradient(92deg,#eafcff,#7fe3ea 55%,#22c55e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.credit{ font-size:12px; color:var(--muted); margin-top:9px; line-height:1.7; }
-.credit a{ color:#8fe0e6; text-decoration:none; }
-.synced{ font-size:12px; color:#22c55e; font-weight:700; margin-top:8px; }
-.synced a{ color:#22c55e; text-decoration:underline; }
+h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradient(92deg,#eafcff,#7fe3ea 55%,#22c55e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
 /* --- primary CTAs --- */
 .ctas{ display:flex; gap:10px; margin:18px 0 4px; }
@@ -90,25 +79,9 @@ footer b{ color:#8fe0e6; }
 </head>
 <body>
 <div class="wrap">
-  <div class="disc">
-    <div class="disc-t">免责声明</div>
-    <ol class="disc-list">
-      <li>本项目为免费开源工具，<b>仅供个人学习、研究与技术测试之用</b>，请勿用于任何违反所在国家/地区法律法规的用途。</li>
-      <li>使用本项目（含模块、脚本、选点页）所引发的<b>一切风险与后果，由使用者自行承担</b>，与开源项目原作者及贡献者无关。</li>
-      <li>本项目与 <b>Apple Inc.</b> 无任何关联，不隶属、不代表 Apple，亦未获其授权或认可。</li>
-      <li>下载、安装或使用本项目，即视为你已阅读并同意本声明；如不同意，请立即停止使用。</li>
-    </ol>
-  </div>
-
   <header>
     <div class="logowrap"><img class="logo" src="/icon.svg" alt="Logo"></div>
-    <h1>iOS Location Spoofer · 虚拟定位</h1>
-    <p class="credit">
-      致敬开源贡献者：<a href="https://github.com/Yu9191/wloc" target="_blank" rel="noopener">Yu9191</a> ·
-      <a href="https://github.com/mekos2772/ios-location-spoofer" target="_blank" rel="noopener">mekos2772</a> ·
-      <a href="https://github.com/acheong08/ios-location-spoofer" target="_blank" rel="noopener">acheong08</a>
-    </p>
-    <p class="synced">✅ 已同步上游 <a href="https://github.com/Yu9191/wloc/releases" target="_blank" rel="noopener">Yu9191/wloc v1.1</a>：随机扰动半径 · 港澳台/百度坐标解析</p>
+    <h1>iPhone 虚拟定位</h1>
   </header>
 
   <div class="ctas">
