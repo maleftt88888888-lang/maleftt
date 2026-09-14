@@ -46,6 +46,13 @@ h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradi
 
 .divider{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:24px 0 20px; }
 
+/* --- section heads --- */
+h2{ font-size:16px; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:9px; }
+h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:linear-gradient(180deg,var(--cyan),var(--green)); }
+.sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px 13px; }
+.note{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--cyan); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#c3ccdb; margin-bottom:16px; }
+.note b{ color:var(--txt); }
+
 /* --- platform cards --- */
 .plat{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px; }
 .plat .big{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border:none; border-radius:11px; background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-size:15.5px; font-weight:800; cursor:pointer; text-align:center; text-decoration:none; transition:filter .12s,transform .12s; }
@@ -75,6 +82,10 @@ footer b{ color:#8fe0e6; }
 
   <div class="divider"></div>
 
+  <h2>安装与使用说明</h2>
+  <p class="sub">点击「一键导入」直接安装到 Shadowrocket；或点击「复制」手动添加模块。</p>
+  <div class="note">📍 生效前提：① 代理 App 已连接（开关/引擎打开、<b>非「直连」模式</b>）；② 开启 HTTPS 解密 (MITM) 并信任证书；③ 安装好 Shadowrocket 对应的模块。之后打开选点页选择位置并点击「储存到设备」即可生效。iOS 切换后可能需要重启一次设备清理缓存。</div>
+
   <div id="plats"></div>
 
   <footer>
@@ -90,7 +101,6 @@ footer b{ color:#8fe0e6; }
   var origin = location.origin;
   function u(file){ return origin + '/' + file; }
   
-  // 仅保留 Shadowrocket
   var PLATS = [
     { 
       name: 'Shadowrocket', 
