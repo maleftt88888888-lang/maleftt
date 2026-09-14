@@ -82,7 +82,19 @@ h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradi
 h2{ font-size:16px; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:9px; }
 h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:linear-gradient(180deg,var(--cyan),var(--green)); }
 .sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px 13px; }
-.note{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--cyan); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#c3ccdb; margin-bottom:16px; }
+
+/* 优化后的提示框样式 */
+.note{ 
+  background:var(--card); 
+  border:1px solid var(--line); 
+  border-radius:14px; 
+  padding:14px 16px; 
+  font-size:12.5px; 
+  color:#c3ccdb; 
+  line-height:1.6;
+  margin-bottom:16px; 
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+}
 .note b{ color:var(--txt); }
 
 /* --- platform cards --- */
@@ -112,7 +124,6 @@ footer b{ color:#8fe0e6; }
     <a class="enter go" href="/picker">🗺️ 进入选点网页</a>
   </div>
 
-  <!-- 微信联系卡片 -->
   <div class="wechat-box">
     <div class="wechat-info">
       <span class="wechat-icon">💬</span>
@@ -195,7 +206,6 @@ footer b{ color:#8fe0e6; }
     }); 
   }
 
-  // 微信复制绑定
   var wcBtn = document.getElementById('copyWechat');
   if(wcBtn){
     wcBtn.addEventListener('click', function(){
