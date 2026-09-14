@@ -39,10 +39,42 @@ header .logo{ width:74px; height:74px; border-radius:20px; display:block; box-sh
 h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradient(92deg,#eafcff,#7fe3ea 55%,#22c55e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
 /* --- primary CTAs --- */
-.ctas{ display:flex; gap:10px; margin:18px 0 4px; }
+.ctas{ display:flex; gap:10px; margin:18px 0 12px; }
 .enter{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:17px 14px; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; text-decoration:none; transition:transform .12s,box-shadow .12s; }
 .enter:active{ transform:scale(.97); }
 .enter.go{ background:linear-gradient(135deg,#2ee06a,#129a44); color:#04240f; box-shadow:0 10px 26px rgba(34,197,94,.34); }
+
+/* --- contact card --- */
+.wechat-box{
+  background: linear-gradient(135deg, rgba(25,30,40,0.8), rgba(18,22,29,0.95));
+  border: 1px solid rgba(23,195,207,0.2);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  backdrop-filter: blur(8px);
+  margin-bottom: 4px;
+}
+.wechat-info{ display:flex; align-items:center; gap:10px; }
+.wechat-icon{ font-size:18px; }
+.wechat-text{ display:flex; flex-direction:column; }
+.wechat-label{ font-size:12px; color:var(--muted); font-weight:500; }
+.wechat-id{ font-family:"SF Mono",ui-monospace,monospace; font-size:14px; color:var(--mono); font-weight:700; letter-spacing:.5px; }
+.wechat-copy{
+  padding: 6px 14px;
+  background: rgba(23,195,207,0.12);
+  border: 1px solid rgba(23,195,207,0.3);
+  border-radius: 8px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.wechat-copy:active{ transform:scale(.95); background:rgba(23,195,207,0.25); }
+.wechat-copy.ok{ background:var(--green); border-color:var(--green); color:#04240f; }
 
 .divider{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:24px 0 20px; }
 
@@ -78,6 +110,18 @@ footer b{ color:#8fe0e6; }
 
   <div class="ctas">
     <a class="enter go" href="/picker">🗺️ 进入选点网页</a>
+  </div>
+
+  <!-- 微信联系卡片 -->
+  <div class="wechat-box">
+    <div class="wechat-info">
+      <span class="wechat-icon">💬</span>
+      <div class="wechat-text">
+        <span class="wechat-label">中国大陆微信号</span>
+        <span class="wechat-id">LLME-love</span>
+      </div>
+    </div>
+    <button class="wechat-copy" id="copyWechat">复制微信号</button>
   </div>
 
   <div class="divider"></div>
@@ -139,16 +183,24 @@ footer b{ color:#8fe0e6; }
     });
   }
 
-  function doCopy(s, btn){ 
+  function doCopy(s, btn, successMsg){ 
     copyText(s).then(function(){ 
-      toast('已复制模块链接'); 
+      toast(successMsg || '已复制'); 
       var o = btn.textContent; 
       btn.classList.add('ok'); 
       btn.textContent = '✓'; 
       setTimeout(function(){ btn.textContent = o; btn.classList.remove('ok'); }, 1200); 
     }).catch(function(){ 
-      toast('复制失败，请手动选择'); 
+      toast('复制失败，请手动输入'); 
     }); 
+  }
+
+  // 微信复制绑定
+  var wcBtn = document.getElementById('copyWechat');
+  if(wcBtn){
+    wcBtn.addEventListener('click', function(){
+      doCopy('LLME-love', wcBtn, '已复制微信号: LLME-love');
+    });
   }
 
   var html = '';
@@ -168,7 +220,7 @@ footer b{ color:#8fe0e6; }
   for (var j=0; j<btns.length; j++){ 
     (function(b){ 
       b.addEventListener('click', function(){ 
-        doCopy(b.getAttribute('data-url'), b); 
+        doCopy(b.getAttribute('data-url'), b, '已复制模块链接'); 
       }); 
     })(btns[j]); 
   }
