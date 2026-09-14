@@ -138,7 +138,6 @@ body {
 </head>
 <body>
 <div class="topbar">
-  <a class="back" href="/">← 主页</a>
   <span class="topcredit">📍 iOS 虚拟定位 · 网页选点工具</span>
 </div>
 <div style="position:relative">
@@ -232,13 +231,15 @@ body {
   </div>
 </div>
 <script>
-const SAVE_API = 'https://gs-loc.apple.com/ils-settings/save';
-const GET_API = 'https://gs-loc.apple.com/ils-settings/get';
-const CLEAR_API = 'https://gs-loc.apple.com/ils-settings/clear';
+// 使用相对路径以确保能够正确被代理工具重写/拦截
+const SAVE_API = '/ils-settings/save';
+const GET_API = '/ils-settings/get';
+const CLEAR_API = '/ils-settings/clear';
 const PARSE_API = '/api/parse';
 const ELEV_API = 'https://api.open-meteo.com/v1/elevation';
 const FAV_KEY = 'ils_favorites';
 const LANG_KEY = 'ils_lang';
+
 let lat = 0, lon = 0;
 let didInitialCenter = false;
 let selected = false;
@@ -477,6 +478,7 @@ function updateCoords() {
 
 function updateStatus(msg) {
   const s = document.getElementById('status');
+  if (!s) return;
   if (msg) { s.textContent = msg; return; }
   s.textContent = t('status_hint');
 }
