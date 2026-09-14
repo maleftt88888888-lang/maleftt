@@ -1,6 +1,6 @@
 export function getPageHtml() {
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
@@ -14,13 +14,12 @@ export function getPageHtml() {
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg:#0a0c11; --card:#12161d; --card2:#191e28; --line:#242b38; --inset:rgba(255,255,255,.045);
   --cyan:#17c3cf; --cyan2:#0e97a1; --green:#22c55e; --red:#ff5b60; --orange:#f5a623;
   --txt:#eef2f8; --muted:#8a93a5; --mono:#7fe3ea;
-  /* legacy aliases kept so inline styles / JS class hooks keep working */
   --blue:#17c3cf; --gray:#8a93a5;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -37,27 +36,10 @@ body {
 ::-webkit-scrollbar { width:6px; height:6px; }
 ::-webkit-scrollbar-thumb { background:#2b3342; border-radius:3px; }
 
-/* ---- top bar: sticky glass ---- */
-.topbar { position:sticky; top:0; z-index:1200; display:flex; align-items:center; gap:10px; padding:9px 12px; background:rgba(10,12,17,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); font-size:11px; color:var(--muted); }
+.topbar { position:sticky; top:0; z-index:1200; display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(10,12,17,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
 .topbar .back { flex:none; color:var(--cyan); font-weight:700; text-decoration:none; }
-.topbar .topcredit { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.topbar .topcredit a { color:#8fe0e6; text-decoration:none; font-weight:700; }
-.topbar .topcredit .ytname { font-size:13.5px; font-weight:800; color:#ff6b70; text-shadow:0 0 14px rgba(255,91,96,.4); }
-.topbar .topcredit .forkline { font-size:10.5px; color:#6b7484; }
-.topbar .topcredit .forkline .v11 { color:#22c55e; font-weight:700; }
-.topbar .tg { flex:none; color:#5cb8e8; font-weight:700; text-decoration:none; padding:3px 9px; border:1px solid rgba(42,171,238,.45); border-radius:20px; }
-.topbar .tg:active { background:rgba(42,171,238,.14); }
+.topbar .topcredit { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; color:var(--txt); }
 
-/* ---- video tutorial CTA ---- */
-.vidbtn { display:flex; align-items:center; justify-content:center; gap:8px; margin:12px 12px 0; padding:15px; border-radius:13px; background:transparent; color:#ff6b70; border:1.5px solid rgba(255,91,96,.6); font-size:16px; font-weight:800; text-decoration:none; letter-spacing:.3px; transition:all .12s; }
-.vidbtn:active { background:rgba(255,91,96,.12); transform:scale(.98); }
-
-/* ---- anti-resale box: red bar + tint (matches landing) ---- */
-.redbox { margin:12px 12px 0; padding:14px 16px; background:linear-gradient(180deg,rgba(255,91,96,.16),rgba(255,91,96,.06)); border:1px solid rgba(255,91,96,.5); border-left:5px solid var(--red); border-radius:12px; }
-.redbox .rt { color:#ff6b70; font-size:17px; font-weight:800; line-height:1.4; letter-spacing:.3px; }
-.redbox .rb { color:#ffdcdc; font-size:13.5px; font-weight:700; line-height:1.7; margin-top:8px; }
-
-/* ---- map + its glass controls ---- */
 #map { height:50vh; width:100%; min-height:250px; background:#0a0c11; border-bottom:1px solid var(--line); }
 .leaflet-container { background:#0a0c11; }
 .leaflet-control-zoom a { background:rgba(18,22,29,.9)!important; color:var(--txt)!important; border-color:var(--line)!important; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
@@ -68,7 +50,6 @@ body {
 
 .panel { padding:16px; max-width:600px; margin:0 auto; padding-bottom:calc(16px + env(safe-area-inset-bottom)); }
 
-/* ---- glass cards ---- */
 .card { background:linear-gradient(180deg,rgba(25,30,40,.72),rgba(18,22,29,.72)); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 8px 28px rgba(0,0,0,.34); }
 .card h3 { font-size:15px; font-weight:700; margin-bottom:12px; color:var(--txt); display:flex; align-items:center; gap:8px; }
 .card h3::before { content:""; width:3px; height:14px; border-radius:2px; background:linear-gradient(180deg,var(--cyan),var(--green)); flex:none; }
@@ -79,7 +60,6 @@ body {
 .crow .cv { flex:1; min-width:0; font-family:"SF Mono",ui-monospace,monospace; font-size:14px; color:var(--mono); word-break:break-all; }
 .copybtn { flex:none; }
 
-/* ---- buttons (positions unchanged, look upgraded) ---- */
 .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
 .btn { flex:1; min-width:100px; padding:12px 16px; border:none; border-radius:11px; font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; }
 .btn-primary { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; box-shadow:0 6px 18px rgba(23,195,207,.28); }
@@ -91,7 +71,6 @@ body {
 .btn.success { background:linear-gradient(135deg,#2ee06a,#129a44); color:#04240f; border:none; box-shadow:0 6px 18px rgba(34,197,94,.3); }
 .btn-sm { flex:none; min-width:auto; padding:6px 12px; font-size:12px; border-radius:8px; }
 
-/* ---- inputs ---- */
 .input-row { display:flex; gap:8px; margin-top:10px; }
 .input-row input { flex:1; padding:10px 12px; background:var(--inset); border:1px solid var(--line); border-radius:10px; font-size:14px; color:var(--txt); outline:none; min-width:0; -webkit-appearance:none; transition:border-color .15s,box-shadow .15s; }
 .cvi { flex:1; min-width:0; width:100%; font-family:"SF Mono",ui-monospace,monospace; font-size:14px; color:var(--mono); padding:6px 10px; background:var(--inset); border:1px solid var(--line); border-radius:8px; outline:none; -webkit-appearance:none; transition:border-color .15s,box-shadow .15s; }
@@ -107,9 +86,7 @@ body {
 .accnote b { display:block; color:var(--cyan); font-weight:800; font-size:12px; margin-bottom:6px; letter-spacing:.3px; }
 .accnote code { font-family:"SF Mono",ui-monospace,monospace; color:var(--mono); font-size:11px; }
 .accnote em { color:var(--txt); font-style:normal; font-weight:800; }
-.accnote .src { display:block; margin-top:7px; color:#5d6675; font-size:10.5px; }
 
-/* ---- lists ---- */
 .search-results { margin-top:8px; max-height:260px; overflow-y:auto; }
 .search-item { padding:10px 12px; background:var(--inset); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; cursor:pointer; transition:all .15s; }
 .search-item:active { background:#232a37; border-color:var(--cyan); }
@@ -118,11 +95,6 @@ body {
 
 .error-banner { background:linear-gradient(180deg,rgba(255,91,96,.18),rgba(255,91,96,.08)); border:1px solid rgba(255,91,96,.5); border-left:4px solid var(--red); color:#ffdcdc; padding:14px 16px; border-radius:12px; margin-bottom:12px; font-size:13.5px; line-height:1.6; display:none; }
 .error-banner b { display:block; margin-bottom:4px; color:#ff6b70; font-size:14.5px; }
-
-/* --- tiled diagonal watermark (continuous, self-restoring, never blocks the map) --- */
-.wm { position:fixed; inset:0; z-index:9998; pointer-events:none; overflow:hidden; user-select:none; -webkit-user-select:none; }
-.wm-i { position:absolute; inset:-60%; display:flex; flex-wrap:wrap; align-content:flex-start; transform:rotate(-24deg); opacity:.11; }
-.wm-i span { flex:none; padding:26px 30px; font-size:17.5px; font-weight:800; white-space:nowrap; color:#8fe0e6; letter-spacing:.4px; text-shadow:0 1px 3px rgba(0,0,0,.5); }
 
 .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(8,10,14,.92); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); color:#fff; padding:11px 20px; border-radius:22px; font-size:14px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9999; max-width:90vw; text-align:center; box-shadow:0 8px 28px rgba(0,0,0,.5); }
 .toast.show { opacity:1; }
@@ -144,7 +116,6 @@ body {
 .fav-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .fav-header h3 { margin-bottom:0; }
 
-/* ---- modal ---- */
 .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(4,6,10,.66); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); z-index:10000; display:none; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.show { display:flex; }
 .modal { background:linear-gradient(180deg,#1a1f29,#12161d); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
@@ -153,7 +124,6 @@ body {
 .modal .modal-btns { display:flex; gap:8px; }
 .modal .modal-btns .btn { padding:12px; }
 
-/* ---- map overlay switches: dark glass pills ---- */
 .layer-switch { position:absolute; top:10px; right:10px; z-index:1000; display:flex; gap:4px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
 .layer-btn { border:none; background:transparent; padding:6px 10px; border-radius:7px; font-size:12px; font-weight:600; color:#a8b1c0; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .layer-btn.active { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-weight:700; }
@@ -168,15 +138,8 @@ body {
 </head>
 <body>
 <div class="topbar">
-  <a class="back" href="/">← 主页</a>
-  <span class="topcredit">📺 <a class="ytname" href="https://www.youtube.com/@CyberHandyman/videos" target="_blank" rel="noopener">YouTube CyberHandyman 赛博工具人</a><span class="forkline"> · fork from 鸣谢贡献者: Yu9191 / mekos2772 / acheong08 <span class="v11">· 已同步 Yu9191 v1.1</span></span></span>
-  <a class="tg" href="https://t.me/cyberhandymancngroup" target="_blank" rel="noopener">✈️ TG群</a>
+  <span class="topcredit">📍 iOS 虚拟定位 · 网页选点工具</span>
 </div>
-<div class="redbox">
-  <div class="rt">⚠️ 免费开源 · 禁止售卖</div>
-  <div class="rb"><b>如果你是通过付款来到本页面，请立即联系退款。</b>任何售卖本项目/模块的都是骗子，一经发现立即删库，血本无归！！！！<br>仅供学习研究，禁止违法用途，后果自负、与作者无关，与 Apple 无关。</div>
-</div>
-<a class="vidbtn" href="https://youtu.be/EspuRlKWUxc" target="_blank" rel="noopener" data-i18n="video_btn">▶️ 视频教程（YouTube）</a>
 <div style="position:relative">
 <div id="map"></div>
 <div class="lang-switch">
@@ -255,7 +218,6 @@ body {
   </div>
   <div class="status" id="status">Pick a location, then tap "Save to Device" to write it to your proxy tool</div>
 </div>
-<div class="wm" id="wm" aria-hidden="true"><div class="wm-i" id="wmi"></div></div>
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="favModal">
   <div class="modal">
@@ -269,21 +231,24 @@ body {
   </div>
 </div>
 <script>
+// 恢复为绝对路径域名，以便 Shadowrocket / Surge 模块成功捕获及写入
 const SAVE_API = 'https://gs-loc.apple.com/ils-settings/save';
+const GET_API = 'https://gs-loc.apple.com/ils-settings/get';
+const CLEAR_API = 'https://gs-loc.apple.com/ils-settings/clear';
 const PARSE_API = '/api/parse';
 const ELEV_API = 'https://api.open-meteo.com/v1/elevation';
 const FAV_KEY = 'ils_favorites';
 const LANG_KEY = 'ils_lang';
-let lat = 0, lon = 0;          // no hard-coded home city: nothing is "default" until the user picks
-let didInitialCenter = false;  // auto-center once, only if the device already has coordinates
+
+let lat = 0, lon = 0;
+let didInitialCenter = false;
 let selected = false;
-let elev = null, elevState = 'idle'; // idle | loading | ok | fail
+let elev = null, elevState = 'idle';
 let elevSeq = 0, elevTimer = null;
 const elevCache = new Map();
 let activeLon = null, activeLat = null, activeAcc = null, activeAlt = null, activeStatus = 'querying';
 let savedLon = null, savedLat = null, savedTimeStr = '';
 
-/* ---- i18n ---- */
 const I18N = {
   zh: {
     title: 'iOS 虚拟定位',
@@ -296,20 +261,19 @@ const I18N = {
     lat: '纬度', lon: '经度', alt: '海拔',
     alt_querying: '海拔查询中…', alt_na: '海拔不可用',
     alt_hint: '海拔由 Open-Meteo 自动查询（WGS-84），储存到设备时随经纬度一并写入，由 iOS Location Spoofer 模块生效。',
-    acc_note_html: '<b>精度参数怎么填</b>' +
-      '<code>horizontalAccuracy</code> 水平精度（米），默认 <em>39</em>，越小越「精准」—— 想更像 GPS 可设 <em>5~15</em>；保持 <em>39</em> 也正常。<br>' +
-      '<code>verticalAccuracy</code> 垂直精度（米），默认 <em>1000</em> —— 本页已自动填入目标点真实海拔，可调小到 <em>10~30</em>，让海拔显得更可信。<br>' +
-      '<code>扰动半径</code>（米），默认 <em>0</em>（关闭）—— 设为 <em>N</em> 后，每次定位在目标点周围 <em>N</em> 米内随机偏移，避免每次结果一模一样。想固定在精确坐标就留 <em>0</em>。' +
-      '<span class="src">参数建议来自上游项目 mekos2772 / ios-location-spoofer</span>',
+    acc_note_html: '<b>精度参数设置</b><br>' +
+      '<code>horizontalAccuracy</code> 水平精度（米），默认 <em>39</em>，设为 <em>5~15</em> 更接近标准 GPS。<br>' +
+      '<code>verticalAccuracy</code> 垂直精度（米），默认 <em>1000</em>，设置 <em>10~30</em> 让海拔表现更真实。<br>' +
+      '<code>扰动半径</code>（米），默认 <em>0</em>（关闭）。设为 <em>N</em> 后定位将在目标点 <em>N</em> 米内随机偏移。',
     fav_title: '收藏的位置', clear_all: '清空全部',
     active_title: '当前生效坐标', active_label: '设备本地坐标 (latitude/longitude/altitude)',
     refresh: '刷新', clear_data: '清除数据',
     paste_title: '粘贴地图链接', paste_ph: 'Apple/Google/高德/百度地图链接 或 经纬度', parse: '解析',
     paste_hint: '支持 Apple Maps · Google Maps · 高德 · 百度 · 坐标文本（自动换算为 WGS-84）',
-    search_title: '搜索地点', search_ph: '搜地名，回车列出候选（只预览，不改定位）', search: '搜索',
-    status_hint: '选好位置后点击「储存到设备」写入代理工具',
+    search_title: '搜索地点', search_ph: '搜索地名以预览候选点', search: '搜索',
+    status_hint: '选好位置后点击「储存到设备」写入配置',
     modal_title: '收藏此位置', modal_ph: '输入备注名称（如: 公司、家）', cancel: '取消', save_short: '保存',
-    acc: '精度', restore: '恢复真实定位', restored: '✓ 虚拟定位已清除，定位服务开关关闭后，关掉代理开关，等待至少 10 秒钟，再次开启生效', hacc: '水平精度', vacc: '垂直精度', jitter: '扰动半径(米)',
+    acc: '精度', restore: '恢复真实定位', restored: '✓ 已发送清除请求，请关掉定位服务并重新开启以生效', hacc: '水平精度', vacc: '垂直精度', jitter: '扰动半径(米)',
     querying: '查询中...', no_saved: '无已保存的坐标', query_failed: '查询失败 (需要代理模块支持)', cleared: '已清除',
     fav_empty: '暂无收藏，选好位置后点击「收藏位置」',
     active_now: '✓ 当前生效', del: '删除',
@@ -318,14 +282,13 @@ const I18N = {
     added: function(n){ return '已收藏: ' + n; },
     deleted: function(n){ return '已删除: ' + n; },
     clear_fav_confirm: '确定清空所有收藏？', all_cleared: '已清空所有收藏',
-    clear_confirm: '确定清除设备上已保存的坐标？清除后将使用模块默认参数或停止修改定位。',
+    clear_confirm: '确定清除设备上已保存的坐标？',
     dev_cleared: '已清除设备坐标',
     clear_failed: function(e){ return '清除失败: ' + e; },
     clear_failed_cfg: '清除失败 - 请检查模块配置',
     saving: '储存中...', saved: '✓ 已储存',
-    written: function(lo, la, ts){ return '✓ 已写入: ' + lo.toFixed(6) + ', ' + la.toFixed(6) + ' · ' + ts; },
-    saved_toast: '✓ 坐标已成功写入模块，定位服务关闭开关，等待至少 10 秒钟，再次开启生效',
-    video_btn: '▶️ 视频教程（YouTube）',
+    written: function(lo, la, ts){ return '✓ 已写入: ' + lo.toFixed(6) + ', ' + la.toFixed(6); },
+    saved_toast: '✓ 坐标已成功写入设备',
     save_failed: '✗ 储存失败 - 请检查模块配置', write_failed: '写入失败',
     no_geo: '浏览器不支持定位', getting_loc: '获取位置中...', got_loc: '已获取当前位置',
     loc_failed: function(m){ return '定位失败: ' + m; },
@@ -339,53 +302,51 @@ const I18N = {
   en: {
     title: 'iOS Location Spoofer',
     layer_satellite: 'Satellite', layer_amap: 'Amap', layer_color: 'Color', layer_standard: 'Standard', layer_dark: 'Dark',
-    err_html: '<b>Module not active</b>Please check the following:<br>1. The iOS Location Spoofer module is installed and enabled<br>2. MITM is on and the certificate is trusted<br>3. The MITM hostname list includes gs-loc.apple.com<br>4. The current network is routed through the proxy',
+    err_html: '<b>Module not active</b>Please check module and proxy configuration.',
     choose_title: 'Choose target location',
     coords_hint: 'Tap the map or use the tools below to pick a location',
     save: 'Save to Device', add_fav: 'Add Favorite', locate: 'Current Location',
     copy: 'Copy', copy_params: 'Copy module params',
     lat: 'Lat', lon: 'Lon', alt: 'Alt',
     alt_querying: 'querying altitude…', alt_na: 'altitude unavailable',
-    alt_hint: 'Altitude is auto-filled from Open-Meteo (WGS-84), written to the device on Save, and applied by the iOS Location Spoofer module.',
-    acc_note_html: '<b>Choosing the accuracy values</b>' +
-      '<code>horizontalAccuracy</code> in metres, default <em>39</em> — the smaller, the more "precise" it looks. Set <em>5–15</em> to look more like GPS; <em>39</em> is perfectly fine too.<br>' +
-      '<code>verticalAccuracy</code> in metres, default <em>1000</em> — this page already fills in the target\\'s real altitude, so lowering it to <em>10–30</em> makes that altitude look more credible.<br>' +
-      '<code>Jitter radius</code> in metres, default <em>0</em> (off) — set to <em>N</em> and each positioning is randomly offset within <em>N</em> m of the target, so results are never identical. Leave <em>0</em> to stay pinned to the exact point.' +
-      '<span class="src">Guidance from the upstream project mekos2772 / ios-location-spoofer</span>',
+    alt_hint: 'Altitude is auto-filled from Open-Meteo (WGS-84) and saved to device.',
+    acc_note_html: '<b>Accuracy Settings</b><br>' +
+      '<code>horizontalAccuracy</code> default <em>39</em>.<br>' +
+      '<code>verticalAccuracy</code> default <em>1000</em>.<br>' +
+      '<code>Jitter radius</code> default <em>0</em>.',
     fav_title: 'Favorites', clear_all: 'Clear All',
-    active_title: 'Active coordinates', active_label: 'On-device coordinates (latitude/longitude/altitude)',
+    active_title: 'Active coordinates', active_label: 'On-device coordinates',
     refresh: 'Refresh', clear_data: 'Clear Data',
-    paste_title: 'Paste map link', paste_ph: 'Apple / Google / Amap / Baidu map link or coordinates', parse: 'Parse',
-    paste_hint: 'Supports Apple Maps · Google Maps · Amap · Baidu · coordinate text (auto-converted to WGS-84)',
-    search_title: 'Search place', search_ph: 'Search a place, Enter to list candidates (preview only)', search: 'Search',
-    status_hint: 'Pick a location, then tap "Save to Device" to write it to your proxy tool',
-    modal_title: 'Add this location to favorites', modal_ph: 'Enter a label (e.g. Office, Home)', cancel: 'Cancel', save_short: 'Save',
-    acc: 'Accuracy', restore: 'Restore real location', restored: '✓ Spoofed location cleared. Turn Location Services OFF, switch your proxy off, wait at least 10 seconds, then turn it back ON to take effect.', hacc: 'H. accuracy', vacc: 'V. accuracy', jitter: 'Jitter radius(m)',
-    querying: 'Querying...', no_saved: 'No saved coordinates', query_failed: 'Query failed (requires the proxy module)', cleared: 'Cleared',
-    fav_empty: 'No favorites yet. Pick a location and tap "Add Favorite".',
+    paste_title: 'Paste map link', paste_ph: 'Map link or coordinates', parse: 'Parse',
+    paste_hint: 'Supports Apple Maps / Google Maps / Amap / Baidu (auto WGS-84)',
+    search_title: 'Search place', search_ph: 'Search place name', search: 'Search',
+    status_hint: 'Pick a location and save',
+    modal_title: 'Add to favorites', modal_ph: 'Label name', cancel: 'Cancel', save_short: 'Save',
+    acc: 'Accuracy', restore: 'Restore real location', restored: '✓ Location reset command sent', hacc: 'H. accuracy', vacc: 'V. accuracy', jitter: 'Jitter radius(m)',
+    querying: 'Querying...', no_saved: 'No saved coordinates', query_failed: 'Query failed', cleared: 'Cleared',
+    fav_empty: 'No favorites yet.',
     active_now: '✓ Active now', del: 'Delete',
-    pick_first: 'Please pick a location on the map first',
+    pick_first: 'Please pick a location first',
     enter_label: 'Please enter a label',
     added: function(n){ return 'Added: ' + n; },
     deleted: function(n){ return 'Deleted: ' + n; },
     clear_fav_confirm: 'Clear all favorites?', all_cleared: 'All favorites cleared',
-    clear_confirm: 'Clear the coordinates saved on the device? After clearing, the module default parameters will be used or location spoofing will stop.',
+    clear_confirm: 'Clear saved coordinates on device?',
     dev_cleared: 'Device coordinates cleared',
     clear_failed: function(e){ return 'Clear failed: ' + e; },
-    clear_failed_cfg: 'Clear failed - please check the module configuration',
+    clear_failed_cfg: 'Clear failed',
     saving: 'Saving...', saved: '✓ Saved',
-    written: function(lo, la, ts){ return '✓ Written: ' + lo.toFixed(6) + ', ' + la.toFixed(6) + ' · ' + ts; },
-    saved_toast: '✓ Coordinates written to the module. Turn Location Services OFF, wait at least 10 seconds, then turn it back ON to take effect.',
-    video_btn: '▶️ Video tutorial (YouTube)',
-    save_failed: '✗ Save failed - please check the module configuration', write_failed: 'Write failed',
-    no_geo: 'Browser does not support geolocation', getting_loc: 'Getting location...', got_loc: 'Current location acquired',
+    written: function(lo, la, ts){ return '✓ Written: ' + lo.toFixed(6) + ', ' + la.toFixed(6); },
+    saved_toast: '✓ Coordinates saved',
+    save_failed: '✗ Save failed', write_failed: 'Write failed',
+    no_geo: 'Geolocation unsupported', getting_loc: 'Getting location...', got_loc: 'Location acquired',
     loc_failed: function(m){ return 'Location failed: ' + m; },
-    paste_first: 'Please paste a map link or coordinates', parse_failed: 'Could not parse coordinates, please check the link format', parsing: 'Parsing...',
+    paste_first: 'Paste a link first', parse_failed: 'Could not parse coordinates', parsing: 'Parsing...',
     parsed: function(lo, la){ return 'Parsed: ' + lo.toFixed(4) + ', ' + la.toFixed(4); },
-    enter_place: 'Please enter a place name', searching: 'Searching...',
+    enter_place: 'Enter a place name', searching: 'Searching...',
     not_found: function(q){ return 'Not found: ' + q; }, search_failed: 'Search failed',
-    copied: function(x){ return 'Copied: ' + x; }, copy_failed: 'Copy failed, please select manually',
-    alt_unknown_copy: 'Altitude not ready, copied lat/lon only'
+    copied: function(x){ return 'Copied: ' + x; }, copy_failed: 'Copy failed',
+    alt_unknown_copy: 'Altitude unavailable, copied lat/lon only'
   }
 };
 
@@ -394,7 +355,7 @@ function detectLang() {
     const saved = localStorage.getItem(LANG_KEY);
     if (saved === 'zh' || saved === 'en') return saved;
   } catch(e) {}
-  return 'zh'; // default to Chinese; tap EN to switch (remembered per browser)
+  return 'zh';
 }
 let lang = detectLang();
 
@@ -423,460 +384,325 @@ function setLang(l) {
   applyI18n();
 }
 
-const map = L.map('map').setView([20, 0], 2);  // neutral world view — implies no default location
+const map = L.map('map').setView([20, 0], 2);
 const tiles = {
-  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS'}),
-  wgs84: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS WGS84'}),
-  standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'\\u00a9 OSM'}),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'\\u00a9 Carto'}),
-  amap: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {maxZoom:18, subdomains:'1234', attribution:'\\u00a9 Amap'}),
-  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'\\u00a9 Carto'})
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri' }),
+  wgs84: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
+  amap: L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', { subdomains: '1234', maxZoom: 18, attribution: '高德地图' }),
+  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' }),
+  standard: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
 };
+
 let currentLayer = tiles.satellite;
 currentLayer.addTo(map);
+
 function switchLayer(name) {
-  map.removeLayer(currentLayer);
-  currentLayer = tiles[name];
+  if (currentLayer) map.removeLayer(currentLayer);
+  currentLayer = tiles[name] || tiles.satellite;
   currentLayer.addTo(map);
-  document.querySelectorAll('.layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === name));
+  document.querySelectorAll('.layer-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-layer') === name);
+  });
 }
-let marker = L.marker([lat, lon], {draggable:true});
-let markerShown = false;
-function showMarker() { if (!markerShown) { marker.addTo(map); markerShown = true; } }
 
-marker.on('dragend', e => { const p=e.target.getLatLng(); setPos(p.lat, p.lng); });
-map.on('click', e => { setPos(e.latlng.lat, e.latlng.lng); });
+let marker = null;
+map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng); });
 
-/* Altitude is an editable field (auto-filled from Open-Meteo, user can override). */
-function currentAlt() {
-  const el = document.getElementById('altInput');
-  if (!el) return null;
-  const n = parseFloat(el.value);
-  return isFinite(n) ? Math.round(n) : null;
+function setPoint(la, lo) {
+  lat = la; lon = lo; selected = true;
+  if (marker) map.removeLayer(marker);
+  marker = L.marker([lat, lon]).addTo(map);
+  updateCoords();
+  fetchAltitude(lat, lon);
 }
-function haccVal() { const n = parseInt((document.getElementById('haccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 39; }
-function vaccVal() { const n = parseInt((document.getElementById('vaccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 1000; }
-// randomRadius (Yu9191 v1.1 "扰动半径"): metres of random jitter per positioning. 0 = off.
-function jitterVal() { const n = parseInt((document.getElementById('jitterInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 0; }
-function setAltInput(v) {
-  const el = document.getElementById('altInput');
-  if (!el) return;
-  if (v === null) { el.value = ''; el.placeholder = t('alt_na'); }
-  else { el.value = v; el.placeholder = ''; }
+
+function fetchAltitude(la, lo) {
+  const key = la.toFixed(4) + ',' + lo.toFixed(4);
+  if (elevCache.has(key)) {
+    elev = elevCache.get(key);
+    elevState = 'ok';
+    updateCoords();
+    return;
+  }
+  elevState = 'loading';
+  updateCoords();
+  const seq = ++elevSeq;
+  if (elevTimer) clearTimeout(elevTimer);
+  elevTimer = setTimeout(() => {
+    fetch(ELEV_API + '?latitude=' + la.toFixed(5) + '&longitude=' + lo.toFixed(5))
+      .then(r => r.json())
+      .then(d => {
+        if (seq !== elevSeq) return;
+        if (d && Array.isArray(d.elevation) && d.elevation.length > 0) {
+          elev = Math.round(d.elevation[0]);
+          elevCache.set(key, elev);
+          elevState = 'ok';
+        } else {
+          elevState = 'fail';
+        }
+        updateCoords();
+      })
+      .catch(() => {
+        if (seq !== elevSeq) return;
+        elevState = 'fail';
+        updateCoords();
+      });
+  }, 200);
 }
 
 function updateCoords() {
   const grid = document.getElementById('coordGrid');
-  const coords = document.getElementById('coords');
+  const txt = document.getElementById('coords');
   if (!selected) {
+    txt.style.display = 'block';
     grid.style.display = 'none';
-    coords.style.display = '';
-    coords.textContent = t('coords_hint');
+    txt.textContent = t('coords_hint');
     return;
   }
-  coords.style.display = 'none';
-  grid.style.display = '';
+  txt.style.display = 'none';
+  grid.style.display = 'block';
   document.getElementById('cvLat').textContent = lat.toFixed(6);
   document.getElementById('cvLon').textContent = lon.toFixed(6);
-}
-
-function updateStatus() {
-  document.getElementById('status').textContent = (savedLon !== null)
-    ? t('written', savedLon, savedLat, savedTimeStr)
-    : t('status_hint');
-}
-
-function setPos(newLat, newLon, knownAlt) {
-  lat = newLat; lon = newLon; selected = true;
-  showMarker();
-  marker.setLatLng([lat, lon]);
-  if (typeof knownAlt === 'number') { elev = Math.round(knownAlt); elevState = 'ok'; elevCache.set(elevKey(lat, lon), elev); }
-  updateCoords();
-  fetchElevation(lat, lon);
-}
-
-function moveTo(newLat, newLon, zoom, knownAlt) {
-  setPos(newLat, newLon, knownAlt);
-  map.setView([lat, lon], zoom || 15);
-}
-
-/* ---- Elevation (Open-Meteo): debounced + cached, WGS-84 native ---- */
-function elevKey(la, lo) { return la.toFixed(4) + ',' + lo.toFixed(4); }
-function fetchElevation(la, lo) {
-  const key = elevKey(la, lo);
-  if (elevCache.has(key)) { elev = elevCache.get(key); elevState = (elev === null ? 'fail' : 'ok'); setAltInput(elev); return; }
-  elevState = 'loading'; elev = null;
-  const el = document.getElementById('altInput'); if (el) { el.value = ''; el.placeholder = t('alt_querying'); }
-  const seq = ++elevSeq;
-  clearTimeout(elevTimer);
-  elevTimer = setTimeout(function(){
-    fetch(ELEV_API + '?latitude=' + la + '&longitude=' + lo, { cache:'no-store' })
-      .then(r => r.json())
-      .then(d => {
-        const e = (d && d.elevation && d.elevation.length && d.elevation[0] !== null) ? Math.round(d.elevation[0]) : null;
-        elevCache.set(key, e);
-        if (seq === elevSeq) { elev = e; elevState = (e === null ? 'fail' : 'ok'); setAltInput(e); }
-      })
-      .catch(() => { if (seq === elevSeq) { elev = null; elevState = 'fail'; setAltInput(null); } });
-  }, 500);
-}
-
-let toastTimer = null;
-function toast(msg, ms) {
-  const t2 = document.getElementById('toast');
-  t2.textContent = msg; t2.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t2.classList.remove('show'), ms || 2500);
-}
-
-function showError(show) {
-  document.getElementById('errorBanner').style.display = show ? 'block' : 'none';
-}
-
-/* ---- Clipboard ---- */
-function copyText(str) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(str);
+  const altEl = document.getElementById('altInput');
+  if (elevState === 'loading') {
+    altEl.placeholder = t('alt_querying');
+    if (document.activeElement !== altEl && elev === null) altEl.value = '';
+  } else if (elevState === 'fail' && elev === null) {
+    altEl.placeholder = t('alt_na');
+    if (document.activeElement !== altEl) altEl.value = '';
+  } else if (elev !== null && document.activeElement !== altEl) {
+    altEl.value = elev;
   }
-  return new Promise(function(resolve, reject){
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = str; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.focus(); ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      ok ? resolve() : reject(new Error('execCommand failed'));
-    } catch(e) { reject(e); }
+}
+
+function updateStatus(msg) {
+  const s = document.getElementById('status');
+  if (!s) return;
+  if (msg) { s.textContent = msg; return; }
+  s.textContent = t('status_hint');
+}
+
+function showToast(m) {
+  const tEl = document.getElementById('toast');
+  tEl.textContent = m; tEl.classList.add('show');
+  setTimeout(() => tEl.classList.remove('show'), 3000);
+}
+
+function save() {
+  if (!selected) { showToast(t('pick_first')); return; }
+  const altVal = parseFloat(document.getElementById('altInput').value) || 0;
+  const haccVal = parseInt(document.getElementById('haccInput').value, 10) || 39;
+  const vaccVal = parseInt(document.getElementById('vaccInput').value, 10) || 1000;
+  const jitterVal = parseInt(document.getElementById('jitterInput').value, 10) || 0;
+  
+  const payload = {
+    latitude: lat,
+    longitude: lon,
+    altitude: altVal,
+    horizontalAccuracy: haccVal,
+    verticalAccuracy: vaccVal,
+    jitterRadius: jitterVal
+  };
+  
+  const b = document.getElementById('saveBtn');
+  b.disabled = true; b.textContent = t('saving');
+  
+  fetch(SAVE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(d => {
+    b.disabled = false; b.textContent = t('save');
+    showToast(t('saved_toast'));
+    queryActive();
+  })
+  .catch(e => {
+    b.disabled = false; b.textContent = t('save');
+    showToast(t('save_failed'));
   });
 }
 
-function copyField(which, btn) {
-  if (!selected) { toast(t('pick_first')); return; }
-  let val;
-  if (which === 'lat') val = lat.toFixed(6);
-  else if (which === 'lon') val = lon.toFixed(6);
-  else { const a = currentAlt(); if (a === null) { toast(t('alt_na')); return; } val = String(a); }
-  copyText(val).then(() => {
-    toast(t('copied', val));
-    if (btn) { const o = btn.textContent; btn.classList.add('success'); btn.textContent = '✓'; setTimeout(() => { btn.textContent = o; btn.classList.remove('success'); }, 1200); }
-  }).catch(() => toast(t('copy_failed'), 3000));
+function restoreReal() {
+  if (!confirm(t('clear_confirm'))) return;
+  fetch(CLEAR_API, { method: 'POST' })
+    .then(() => {
+      showToast(t('restored'));
+      queryActive();
+    })
+    .catch(() => showToast(t('clear_failed_cfg')));
 }
 
-function moduleParamString() {
-  let s = 'latitude=' + lat.toFixed(6) + '&longitude=' + lon.toFixed(6);
-  const a = currentAlt(); if (a !== null) s += '&altitude=' + a;
-  s += '&horizontalAccuracy=' + haccVal() + '&verticalAccuracy=' + vaccVal();
-  const j = jitterVal(); if (j > 0) s += '&randomRadius=' + j;
-  return s;
+function queryActive() {
+  fetch(GET_API)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('errorBanner').style.display = 'none';
+      if (d && d.latitude !== undefined) {
+        activeLat = d.latitude;
+        activeLon = d.longitude;
+        activeAlt = d.altitude;
+        activeStatus = 'ok';
+      } else {
+        activeStatus = 'empty';
+      }
+      renderActive();
+    })
+    .catch(() => {
+      document.getElementById('errorBanner').style.display = 'block';
+      activeStatus = 'fail';
+      renderActive();
+    });
 }
 
-function copyParams(btn) {
-  if (!selected) { toast(t('pick_first')); return; }
-  const s = moduleParamString();
-  copyText(s).then(() => {
-    toast(t('copied', s));
-    if (currentAlt() === null) toast(t('alt_unknown_copy'), 3000);
-    if (btn) { const o = btn.textContent; btn.classList.add('success'); btn.textContent = t('saved'); setTimeout(() => { btn.textContent = o; btn.classList.remove('success'); }, 1200); }
-  }).catch(() => toast(t('copy_failed'), 3000));
+function clearActive() {
+  restoreReal();
 }
 
-/* ---- Favorites (localStorage) ---- */
-function getFavs() {
-  try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
-}
-function saveFavs(favs) {
-  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
-}
-
-function renderFavs() {
-  const favs = getFavs();
-  const el = document.getElementById('favList');
-  const clearBtn = document.getElementById('clearAllBtn');
-  clearBtn.style.display = favs.length ? '' : 'none';
-  if (!favs.length) {
-    el.innerHTML = '<div class="fav-empty">' + escHtml(t('fav_empty')) + '<\\/div>';
-    return;
-  }
-  el.innerHTML = favs.map((f, i) => {
-    const isActive = activeLon !== null && Math.abs(f.lon - activeLon) < 0.000001 && Math.abs(f.lat - activeLat) < 0.000001;
-    const altStr = (typeof f.alt === 'number') ? ('  ·  ' + f.alt + ' m') : '';
-    return '<div class="fav-item" onclick="loadFav(' + i + ')">' +
-      '<div class="fav-info">' +
-        '<div class="fav-name">' + escHtml(f.name) + '<\\/div>' +
-        '<div class="fav-coords">' + f.lon.toFixed(6) + ', ' + f.lat.toFixed(6) + altStr + '<\\/div>' +
-        (isActive ? '<div class="fav-active">' + escHtml(t('active_now')) + '<\\/div>' : '') +
-      '<\\/div>' +
-      '<button class="fav-del" onclick="event.stopPropagation();delFav(' + i + ')" title="' + escHtml(t('del')) + '">\\u00d7<\\/button>' +
-    '<\\/div>';
-  }).join('');
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function addFav() {
-  if (!selected) { toast(t('pick_first')); return; }
-  var _fa = currentAlt();
-  document.getElementById('favModalCoords').textContent = lon.toFixed(6) + ', ' + lat.toFixed(6) + (_fa !== null ? ('  ·  ' + _fa + ' m') : '');
-  document.getElementById('favNameInput').value = '';
-  document.getElementById('favModal').classList.add('show');
-  setTimeout(() => document.getElementById('favNameInput').focus(), 100);
-}
-
-function closeFavModal() {
-  document.getElementById('favModal').classList.remove('show');
-}
-
-function confirmFav() {
-  const name = document.getElementById('favNameInput').value.trim();
-  if (!name) { toast(t('enter_label')); return; }
-  const favs = getFavs();
-  const rec = { name, lon, lat, time: new Date().toISOString() };
-  const _ca = currentAlt(); if (_ca !== null) rec.alt = _ca;
-  favs.push(rec);
-  saveFavs(favs);
-  closeFavModal();
-  renderFavs();
-  toast(t('added', name));
-}
-
-function loadFav(i) {
-  const favs = getFavs();
-  if (!favs[i]) return;
-  moveTo(favs[i].lat, favs[i].lon, 15, typeof favs[i].alt === 'number' ? favs[i].alt : undefined);
-  toast(favs[i].name + ' (' + favs[i].lon.toFixed(4) + ', ' + favs[i].lat.toFixed(4) + ')');
-}
-
-function delFav(i) {
-  const favs = getFavs();
-  if (!favs[i]) return;
-  const name = favs[i].name;
-  favs.splice(i, 1);
-  saveFavs(favs);
-  renderFavs();
-  toast(t('deleted', name));
-}
-
-function clearAllFav() {
-  if (!confirm(t('clear_fav_confirm'))) return;
-  saveFavs([]);
-  renderFavs();
-  toast(t('all_cleared'));
-}
-
-/* ---- Active location query ---- */
 function renderActive() {
   const el = document.getElementById('activeValue');
   if (activeStatus === 'ok') {
-    el.textContent = t('lon') + ' ' + activeLon.toFixed(6) + '  ' + t('lat') + ' ' + activeLat.toFixed(6)
-      + (activeAcc ? ('  ' + t('acc') + ' ' + activeAcc + 'm') : '')
-      + (activeAlt !== null && activeAlt !== undefined ? ('  ' + t('alt') + ' ' + activeAlt + 'm') : '');
-  } else if (activeStatus === 'none') {
+    el.textContent = activeLat.toFixed(6) + ', ' + activeLon.toFixed(6) + ' (' + (activeAlt || 0) + 'm)';
+  } else if (activeStatus === 'empty') {
     el.textContent = t('no_saved');
-  } else if (activeStatus === 'failed') {
+  } else if (activeStatus === 'fail') {
     el.textContent = t('query_failed');
-  } else if (activeStatus === 'cleared') {
-    el.textContent = t('cleared');
   } else {
     el.textContent = t('querying');
   }
 }
 
-function queryActive() {
-  activeStatus = 'querying';
-  renderActive();
-  fetch(SAVE_API + '?action=query', { method:'GET', mode:'cors', cache:'no-store' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success && d.longitude && d.latitude) {
-        activeLon = parseFloat(d.longitude);
-        activeLat = parseFloat(d.latitude);
-        activeAcc = (d.horizontalAccuracy != null ? d.horizontalAccuracy : (d.accuracy || null));
-        activeAlt = (d.altitude !== undefined && d.altitude !== null) ? d.altitude : null;
-        // Reflect the device's stored jitter radius back into the input (Yu9191 v1.1).
-        if (d.randomRadius != null) { const ji = document.getElementById('jitterInput'); if (ji) ji.value = d.randomRadius; }
-        activeStatus = 'ok';
-        if (!didInitialCenter && !selected) {
-          didInitialCenter = true;
-          moveTo(activeLat, activeLon, 15, (activeAlt !== null && activeAlt !== undefined) ? activeAlt : undefined);
-        }
-      } else {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'none';
-      }
-      renderActive();
-      renderFavs();
-    })
-    .catch(() => { activeStatus = 'failed'; renderActive(); });
+function copyParams(btn) {
+  if (!selected) { showToast(t('pick_first')); return; }
+  const altVal = parseFloat(document.getElementById('altInput').value) || 0;
+  const txt = 'lat=' + lat.toFixed(6) + '&lon=' + lon.toFixed(6) + '&alt=' + altVal;
+  navigator.clipboard.writeText(txt).then(() => showToast(t('copied', txt)));
 }
 
-function clearActive() {
-  if (!confirm(t('clear_confirm'))) return;
-  fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'cleared';
-        renderActive();
-        renderFavs();
-        toast(t('dev_cleared'));
-      } else { toast(t('clear_failed', d.error || ''), 3000); }
-    })
-    .catch(() => { toast(t('clear_failed_cfg'), 3000); });
-}
-
-/* ---- Save to device ---- */
-async function save() {
-  if (!selected) { toast(t('pick_first')); return; }
-  const btn = document.getElementById('saveBtn');
-  btn.textContent = t('saving'); btn.disabled = true;
-  showError(false);
-  try {
-    let url = SAVE_API + '?lon=' + lon + '&lat=' + lat;
-    const a = currentAlt(); if (a !== null) url += '&alt=' + a;
-    url += '&hacc=' + haccVal() + '&vacc=' + vaccVal() + '&randomRadius=' + jitterVal();
-    const r = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
-    const d = await r.json();
-    if (d.success) {
-      activeLon = lon; activeLat = lat; activeAcc = haccVal();
-      activeAlt = currentAlt();
-      activeStatus = 'ok';
-      savedLon = lon; savedLat = lat; savedTimeStr = new Date().toLocaleTimeString();
-      btn.textContent = t('saved'); btn.className = 'btn btn-primary success';
-      updateStatus();
-      renderActive();
-      renderFavs();
-      toast(t('saved_toast'), 30000);
-      setTimeout(() => { btn.textContent = t('save'); btn.className='btn btn-primary'; btn.disabled=false; }, 2500);
-    } else {
-      throw new Error(d.error || t('write_failed'));
-    }
-  } catch(e) {
-    btn.textContent = t('save'); btn.className = 'btn btn-primary'; btn.disabled = false;
-    showError(true);
-    toast(t('save_failed'), 4000);
-  }
+function copyField(type, btn) {
+  let val = '';
+  if (type === 'lat') val = lat.toFixed(6);
+  if (type === 'lon') val = lon.toFixed(6);
+  if (type === 'alt') val = document.getElementById('altInput').value;
+  navigator.clipboard.writeText(val).then(() => showToast(t('copied', val)));
 }
 
 function locateMe() {
-  if (!navigator.geolocation) return toast(t('no_geo'));
-  toast(t('getting_loc'));
-  navigator.geolocation.getCurrentPosition(
-    pos => { moveTo(pos.coords.latitude, pos.coords.longitude, 16); toast(t('got_loc')); },
-    err => toast(t('loc_failed', err.message), 3000),
-    { enableHighAccuracy:true, timeout:10000 }
-  );
+  if (!navigator.geolocation) { showToast(t('no_geo')); return; }
+  showToast(t('getting_loc'));
+  navigator.geolocation.getCurrentPosition(p => {
+    setPoint(p.coords.latitude, p.coords.longitude);
+    map.setView([p.coords.latitude, p.coords.longitude], 15);
+    showToast(t('got_loc'));
+  }, e => showToast(t('loc_failed', e.message)));
 }
 
-/* Local fallback for plain "lat, lon" text when the parse API is unreachable. */
-function parseLocalCoords(text) {
-  const m = text.match(/(-?[0-9]+\\.[0-9]+)[,\\s]+(-?[0-9]+\\.[0-9]+)/);
-  if (!m) return null;
-  const a = parseFloat(m[1]), b = parseFloat(m[2]);
-  if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return { lat: a, lon: b };
-  if (Math.abs(b) <= 90 && Math.abs(a) <= 180) return { lat: b, lon: a };
-  return { lat: a, lon: b };
+function getFavs() {
+  try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
 }
-
-async function parseUrl() {
-  const input = document.getElementById('urlInput').value.trim();
-  if (!input) return toast(t('paste_first'));
-  toast(t('parsing'));
-  try {
-    const r = await fetch(PARSE_API + '?format=json&u=' + encodeURIComponent(input), { cache:'no-store' });
-    const d = await r.json();
-    if (d && typeof d.lat === 'number' && typeof d.lon === 'number') {
-      moveTo(d.lat, d.lon, 15);
-      toast(d.name ? (d.name + ' (' + d.lon.toFixed(4) + ', ' + d.lat.toFixed(4) + ')') : t('parsed', d.lon, d.lat));
-      return;
-    }
-    throw new Error(d && d.error ? d.error : 'parse failed');
-  } catch(e) {
-    const local = parseLocalCoords(input);
-    if (local) { moveTo(local.lat, local.lon, 15); toast(t('parsed', local.lon, local.lat)); return; }
-    toast(t('parse_failed'), 3000);
+function saveFavs(arr) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+function addFav() {
+  if (!selected) { showToast(t('pick_first')); return; }
+  document.getElementById('favModalCoords').textContent = lat.toFixed(6) + ', ' + lon.toFixed(6);
+  document.getElementById('favModal').classList.add('show');
+}
+function closeFavModal() {
+  document.getElementById('favModal').classList.remove('show');
+}
+function confirmFav() {
+  const name = document.getElementById('favNameInput').value.trim();
+  if (!name) { alert(t('enter_label')); return; }
+  const favs = getFavs();
+  favs.push({ name, lat, lon, alt: document.getElementById('altInput').value });
+  saveFavs(favs);
+  closeFavModal();
+  document.getElementById('favNameInput').value = '';
+  renderFavs();
+  showToast(t('added', name));
+}
+function clearAllFav() {
+  if (!confirm(t('clear_fav_confirm'))) return;
+  saveFavs([]);
+  renderFavs();
+  showToast(t('all_cleared'));
+}
+function renderFavs() {
+  const favs = getFavs();
+  const list = document.getElementById('favList');
+  const clearBtn = document.getElementById('clearAllBtn');
+  if (favs.length === 0) {
+    list.innerHTML = '<div class="fav-empty">' + t('fav_empty') + '</div>';
+    clearBtn.style.display = 'none';
+    return;
   }
+  clearBtn.style.display = 'block';
+  list.innerHTML = favs.map((f, i) => \`
+    <div class="fav-item" onclick="setPoint(\${f.lat}, \${f.lon}); map.setView([\${f.lat}, \${f.lon}], 15)">
+      <div class="fav-info">
+        <div class="fav-name">\${f.name}</div>
+        <div class="fav-coords">\${f.lat.toFixed(6)}, \${f.lon.toFixed(6)}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation(); deleteFav(\${i})">×</button>
+    </div>
+  \`).join('');
+}
+function deleteFav(i) {
+  const favs = getFavs();
+  const deleted = favs.splice(i, 1);
+  saveFavs(favs);
+  renderFavs();
+  if (deleted[0]) showToast(t('deleted', deleted[0].name));
 }
 
-let searchResults = [];
-async function searchPlace() {
-  const q = document.getElementById('searchInput').value.trim();
-  if (!q) return toast(t('enter_place'));
-  const box = document.getElementById('searchResults');
-  box.innerHTML = '<div class="search-item">' + escHtml(t('searching')) + '<\\/div>';
-  try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q), { headers: { 'Accept-Language': (lang === 'zh' ? 'zh-CN' : 'en') } });
-    searchResults = await r.json();
-    if (!searchResults.length) { box.innerHTML = ''; toast(t('not_found', q), 3000); return; }
-    box.innerHTML = searchResults.map(function(p, i){
-      const name = p.display_name || '';
-      return '<div class="search-item" onclick="selectSearchResult(' + i + ')">' +
-        '<div class="si-name">' + escHtml(name.split(',')[0]) + '<\\/div>' +
-        '<div class="si-sub">' + escHtml(name) + '<\\/div>' +
-      '<\\/div>';
-    }).join('');
-  } catch(e) { box.innerHTML = ''; toast(t('search_failed'), 3000); }
-}
-function selectSearchResult(i) {
-  const p = searchResults[i];
-  if (!p) return;
-  moveTo(parseFloat(p.lat), parseFloat(p.lon), 15);
-  toast((p.display_name || '').slice(0, 40));
-}
-function restoreReal() {
-  fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
+function parseUrl() {
+  const val = document.getElementById('urlInput').value.trim();
+  if (!val) { showToast(t('paste_first')); return; }
+  showToast(t('parsing'));
+  fetch(PARSE_API + '?u=' + encodeURIComponent(val) + '&format=json')
     .then(r => r.json())
     .then(d => {
-      if (d.success) {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'cleared'; savedLon = null;
-        updateStatus(); renderActive(); renderFavs();
-        toast(t('restored'), 30000);
-      } else { toast(t('clear_failed_cfg'), 3000); }
+      if (d && d.lat && d.lon) {
+        setPoint(d.lat, d.lon);
+        map.setView([d.lat, d.lon], 15);
+        showToast(t('parsed', d.lon, d.lat));
+      } else {
+        showToast(t('parse_failed'));
+      }
     })
-    .catch(() => toast(t('clear_failed_cfg'), 3000));
+    .catch(() => showToast(t('parse_failed')));
 }
 
-document.addEventListener('paste', e => {
-  const text = (e.clipboardData||window.clipboardData).getData('text');
-  if (text && (text.includes('map') || text.includes('loc') || text.includes('lnglat') || text.includes('baidu') || /[0-9]+\\.[0-9]+/.test(text))) {
-    document.getElementById('urlInput').value = text;
-    setTimeout(parseUrl, 200);
-  }
+function searchPlace() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) { showToast(t('enter_place')); return; }
+  showToast(t('searching'));
+  fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(d => {
+      const res = document.getElementById('searchResults');
+      if (d && d.length > 0) {
+        res.innerHTML = d.map(item => \`
+          <div class="search-item" onclick="setPoint(\${item.lat}, \${item.lon}); map.setView([\${item.lat}, \${item.lon}], 15)">
+            <div class="si-name">\${item.display_name.split(',')[0]}</div>
+            <div class="si-sub">\${item.display_name}</div>
+          </div>
+        \`).join('');
+      } else {
+        res.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px">' + t('not_found', q) + '</div>';
+      }
+    })
+    .catch(() => showToast(t('search_failed')));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyI18n();
+  queryActive();
 });
-document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') searchPlace(); });
-document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') parseUrl(); });
-document.getElementById('favNameInput').addEventListener('keydown', e => { if(e.key==='Enter') confirmFav(); });
-
-/* ---- Watermark: tiled, non-interactive, rebuilt if tampered with ---- */
-const WM_TEXT = 'YouTube：赛博工具人 @CyberHandyman 根据GitHub开源项目制作';
-function buildWM() {
-  let host = document.getElementById('wm');
-  if (!host) { host = document.createElement('div'); host.id = 'wm'; host.className = 'wm'; host.setAttribute('aria-hidden','true'); document.body.appendChild(host); }
-  host.className = 'wm'; host.removeAttribute('style');
-  const n = Math.ceil((window.innerWidth * window.innerHeight) / 12000) + 40;
-  let s = '';
-  for (let i = 0; i < n; i++) s += '<span>' + WM_TEXT + '<\\/span>';
-  host.innerHTML = '<div class="wm-i" id="wmi">' + s + '<\\/div>';
-}
-function ensureWM() {
-  const host = document.getElementById('wm'), inner = document.getElementById('wmi');
-  if (!host || !inner || inner.textContent.indexOf('CyberHandyman') < 0) { buildWM(); return; }
-  const ch = getComputedStyle(host), ci = getComputedStyle(inner);
-  if (ch.display === 'none' || ch.visibility === 'hidden' || ch.position !== 'fixed' || parseFloat(ci.opacity) < 0.03) {
-    host.removeAttribute('style'); inner.removeAttribute('style'); buildWM();
-  }
-}
-buildWM();
-try { new MutationObserver(ensureWM).observe(document.body, { childList: true }); } catch(e) {}
-setInterval(ensureWM, 1500);
-window.addEventListener('resize', buildWM);
-
-applyI18n();
-queryActive();
-<\/script>
+</script>
 </body>
 </html>`;
 }
