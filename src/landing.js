@@ -91,17 +91,10 @@ footer b{ color:#8fe0e6; }
   <div class="divider"></div>
 
   <h2>安装模块</h2>
-  <p class="sub">选择你的代理客户端，点击「一键导入」直接安装；或点击「复制」手动添加。</p>
-  <div class="note">📍 生效前提：① 代理 App 已连接（开关/引擎打开、<b>非「直连」模式</b>）；② 开启 HTTPS 解密 (MITM) 并信任证书；③ 安装好对应客户端的模块。之后打开选点页选择位置并点击「储存到设备」即可生效。iOS 26+ 切换后可能需要重启一次设备清理缓存。</div>
+  <p class="sub">点击「一键导入Shadowrocket」直接安装；或点击「复制」手动添加。</p>
+  <div class="note">📍 生效前提：① Shadowrocket已连接（开关/引擎打开）；② 开启 HTTPS 解密 (MITM) 并信任证书；③ 安装好对应客户端的模块。之后打开选点页选择位置并点击「储存到设备」即可生效。iOS 26+ 切换后可能需要重启一次设备清理缓存。</div>
 
   <div id="plats"></div>
-
-  <div class="mitm">
-    <b>Quantumult X 资源解析器 URL（QX 一键导入 / 重写引用需先配置）：</b><br>
-    <code>https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js</code><br>
-    添加方式 —— 将下面内容填入 QX 配置：<br>
-    <code>[general]<br>#复制下面这些内容（另起一行）<br>resource_parser_url=https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js</code>
-  </div>
   <div class="mitm">
     <b>MITM 主机名（若全部配置成功仍不生效，请在 MITM / HTTPS 解密中手动加入以下域名）：</b>
     <div class="hosts"><code>gs-loc.apple.com<br>gs-loc-cn.apple.com<br>bluedot.is.autonavi.com<br>bluedot.is.autonavi.com.gds.alibabadns.com</code></div>
