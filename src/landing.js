@@ -46,13 +46,6 @@ h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradi
 
 .divider{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:24px 0 20px; }
 
-/* --- section heads --- */
-h2{ font-size:16px; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:9px; }
-h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:linear-gradient(180deg,var(--cyan),var(--green)); }
-.sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px 13px; }
-.note{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--cyan); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#c3ccdb; margin-bottom:16px; }
-.note b{ color:var(--txt); }
-
 /* --- platform cards --- */
 .plat{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px; }
 .plat .big{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border:none; border-radius:11px; background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-size:15.5px; font-weight:800; cursor:pointer; text-align:center; text-decoration:none; transition:filter .12s,transform .12s; }
@@ -62,14 +55,6 @@ h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:li
 .plat .copy{ flex:none; padding:8px 15px; border:1px solid var(--line); border-radius:8px; background:var(--card2); color:var(--txt); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .12s; }
 .plat .copy:active{ background:#2a3140; }
 .plat .copy.ok{ background:var(--green); border-color:var(--green); color:#04240f; }
-.plat .pnote{ font-size:11.5px; color:var(--muted); margin-top:7px; line-height:1.6; }
-
-/* --- info boxes --- */
-.mitm{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; font-size:12.5px; color:#c3ccdb; margin-top:16px; }
-.mitm b{ color:var(--txt); }
-.mitm code{ display:inline-block; font-family:"SF Mono",ui-monospace,monospace; font-size:11.5px; color:var(--mono); word-break:break-all; line-height:2; }
-.mitm .hosts{ margin-top:8px; padding:10px 12px; background:var(--bg); border:1px solid var(--line); border-radius:9px; }
-.mitm .hosts code{ line-height:2.1; }
 
 .toast{ position:fixed; left:50%; bottom:40px; transform:translateX(-50%) translateY(20px); background:rgba(8,10,14,.92); color:#fff; padding:11px 20px; border-radius:22px; font-size:14px; opacity:0; transition:all .25s; pointer-events:none; z-index:99; border:1px solid var(--line); }
 .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
@@ -90,15 +75,7 @@ footer b{ color:#8fe0e6; }
 
   <div class="divider"></div>
 
-  <h2>安装模块</h2>
-  <p class="sub">点击「一键导入Shadowrocket」直接安装；或点击「复制」手动添加。</p>
-  <div class="note">📍 生效前提：① Shadowrocket已连接（开关/引擎打开）；② 开启 HTTPS 解密 (MITM) 并信任证书；③ 安装好对应客户端的模块。之后打开选点页选择位置并点击「储存到设备」即可生效。iOS 26+ 切换后可能需要重启一次设备清理缓存。</div>
-
   <div id="plats"></div>
-  <div class="mitm">
-    <b>MITM 主机名（若全部配置成功仍不生效，请在 MITM / HTTPS 解密中手动加入以下域名）：</b>
-    <div class="hosts"><code>gs-loc.apple.com<br>gs-loc-cn.apple.com<br>bluedot.is.autonavi.com<br>bluedot.is.autonavi.com.gds.alibabadns.com</code></div>
-  </div>
 
   <footer>
     坐标仅保存在你<b>当前设备</b>上，服务端不留存记录。<br>
@@ -112,19 +89,13 @@ footer b{ color:#8fe0e6; }
 (function(){
   var origin = location.origin;
   function u(file){ return origin + '/' + file; }
-  var qxExtra = ', tag=iOS Location Spoofer, update-interval=172800, opt-parser=true, enabled=true';
   
+  // 仅保留 Shadowrocket
   var PLATS = [
-    { name:'Surge', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'surge:///install-module?url=' + encodeURIComponent(x); } },
-    { name:'Shadowrocket', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'shadowrocket://install?module=' + encodeURIComponent(x); } },
-    { name:'Egern', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'egern:///install-module?url=' + encodeURIComponent(x); } },
-    { name:'Loon', file:'ios-location-spoofer.lnplugin', scheme:function(x){ return 'loon://import?plugin=' + encodeURIComponent(x); } },
-    { name:'Stash', file:'ios-location-spoofer.stoverride', scheme:function(x){ return 'stash://install-override?url=' + encodeURIComponent(x); } },
     { 
-      name:'Quantumult X', 
-      file:'ios-location-spoofer.snippet',
-      scheme:function(x){ return 'quantumult-x:///add-resource?remote-resource=' + encodeURIComponent(JSON.stringify({ rewrite_remote:[x + qxExtra] })); },
-      note:'QX 无模块面板：一键导入即添加「重写」资源(需配置资源解析器)；MITM 主机名需手动加入 设置→MITM。' 
+      name: 'Shadowrocket', 
+      file: 'ios-location-spoofer.sgmodule', 
+      scheme: function(x){ return 'shadowrocket://install?module=' + encodeURIComponent(x); } 
     }
   ];
 
@@ -178,7 +149,6 @@ footer b{ color:#8fe0e6; }
       '<a class="big" href="' + esc(p.scheme(url)) + '">一键导入 ' + esc(p.name) + '</a>' +
       '<div class="line"><span class="url">' + esc(url) + '</span>' +
       '<button class="copy" data-url="' + esc(url) + '">复制</button></div>' +
-      (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '') +
       '</div>';
   }
   
