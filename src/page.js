@@ -231,7 +231,7 @@ body {
   </div>
 </div>
 <script>
-// 使用相对路径以确保能够正确被代理工具重写/拦截
+// 使用相对路径，确保代理脚本能进行本地截获
 const SAVE_API = '/ils-settings/save';
 const GET_API = '/ils-settings/get';
 const CLEAR_API = '/ils-settings/clear';
@@ -599,7 +599,6 @@ function locateMe() {
   }, e => showToast(t('loc_failed', e.message)));
 }
 
-/* Favorites */
 function getFavs() {
   try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
 }
@@ -659,7 +658,6 @@ function deleteFav(i) {
   if (deleted[0]) showToast(t('deleted', deleted[0].name));
 }
 
-/* Parse Link & Search */
 function parseUrl() {
   const val = document.getElementById('urlInput').value.trim();
   if (!val) { showToast(t('paste_first')); return; }
