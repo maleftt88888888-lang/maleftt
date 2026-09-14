@@ -14,7 +14,7 @@ export function getPageHtml() {
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg:#0a0c11; --card:#12161d; --card2:#191e28; --line:#242b38; --inset:rgba(255,255,255,.045);
@@ -52,10 +52,11 @@ body {
 .vidbtn { display:flex; align-items:center; justify-content:center; gap:8px; margin:12px 12px 0; padding:15px; border-radius:13px; background:transparent; color:#ff6b70; border:1.5px solid rgba(255,91,96,.6); font-size:16px; font-weight:800; text-decoration:none; letter-spacing:.3px; transition:all .12s; }
 .vidbtn:active { background:rgba(255,91,96,.12); transform:scale(.98); }
 
-/* ---- anti-resale box: red bar + tint (matches landing) ---- */
-.redbox { margin:12px 12px 0; padding:14px 16px; background:linear-gradient(180deg,rgba(255,91,96,.16),rgba(255,91,96,.06)); border:1px solid rgba(255,91,96,.5); border-left:5px solid var(--red); border-radius:12px; }
-.redbox .rt { color:#ff6b70; font-size:17px; font-weight:800; line-height:1.4; letter-spacing:.3px; }
-.redbox .rb { color:#ffdcdc; font-size:13.5px; font-weight:700; line-height:1.7; margin-top:8px; }
+/* ---- green box: green bar + tint (harmonized with theme) ---- */
+.greenbox { margin:12px 12px 0; padding:14px 16px; background:linear-gradient(180deg,rgba(34,197,94,.16),rgba(34,197,94,.06)); border:1px solid rgba(34,197,94,.5); border-left:5px solid var(--green); border-radius:12px; }
+.greenbox .rt { color:#4ade80; font-size:17px; font-weight:800; line-height:1.4; letter-spacing:.3px; }
+.greenbox .rb { color:#dcfce7; font-size:13.5px; font-weight:600; line-height:1.7; margin-top:8px; }
+.greenbox .rb b { color:#fff; }
 
 /* ---- map + its glass controls ---- */
 #map { height:50vh; width:100%; min-height:250px; background:#0a0c11; border-bottom:1px solid var(--line); }
@@ -170,9 +171,9 @@ body {
 <div class="topbar">
   <a class="back" href="/">← 主页</a>
 </div>
-<div class="redbox">
-  <div class="rt">⚠️ 可乐加糖独家版本</div>
-  <div class="rb"><b>可乐加糖独家版本。</b>可乐加糖独家版本！！！！<br>仅供学习研究，禁止违法用途，后果自负、与作者无关，与 Apple 无关。</div>
+<div class="greenbox">
+  <div class="rt">💬 技术支持</div>
+  <div class="rb">微信号：<b>LLME-love</b><br>仅供学习研究，禁止违法用途，后果自负、与作者无关，与 Apple 无关。</div>
 </div>
 <div style="position:relative">
 <div id="map"></div>
@@ -426,199 +427,215 @@ const tiles = {
   wgs84: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS WGS84'}),
   standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'\\u00a9 OSM'}),
   dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'\\u00a9 Carto'}),
-  amap: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {maxZoom:18, subdomains:'1234', attribution:'\\u00a9 Amap'}),
+  amap: L.tileLayer('https://webst01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {subdomains:['1','2','3','4'], maxZoom:19, attribution:'Amap'}),
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'\\u00a9 Carto'})
 };
 let currentLayer = tiles.satellite;
 currentLayer.addTo(map);
-function switchLayer(name) {
-  map.removeLayer(currentLayer);
-  currentLayer = tiles[name];
-  currentLayer.addTo(map);
-  document.querySelectorAll('.layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === name));
-}
-let marker = L.marker([lat, lon], {draggable:true});
-let markerShown = false;
-function showMarker() { if (!markerShown) { marker.addTo(map); markerShown = true; } }
 
-marker.on('dragend', e => { const p=e.target.getLatLng(); setPos(p.lat, p.lng); });
-map.on('click', e => { setPos(e.latlng.lat, e.latlng.lng); });
-
-/* Altitude is an editable field (auto-filled from Open-Meteo, user can override). */
-function currentAlt() {
-  const el = document.getElementById('altInput');
-  if (!el) return null;
-  const n = parseFloat(el.value);
-  return isFinite(n) ? Math.round(n) : null;
+function switchLayer(layerName) {
+  if (tiles[layerName]) {
+    map.removeLayer(currentLayer);
+    currentLayer = tiles[layerName];
+    currentLayer.addTo(map);
+    document.querySelectorAll('.layer-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-layer') === layerName);
+    });
+  }
 }
-function haccVal() { const n = parseInt((document.getElementById('haccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 39; }
-function vaccVal() { const n = parseInt((document.getElementById('vaccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 1000; }
-// randomRadius (Yu9191 v1.1 "扰动半径"): metres of random jitter per positioning. 0 = off.
-function jitterVal() { const n = parseInt((document.getElementById('jitterInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 0; }
-function setAltInput(v) {
-  const el = document.getElementById('altInput');
-  if (!el) return;
-  if (v === null) { el.value = ''; el.placeholder = t('alt_na'); }
-  else { el.value = v; el.placeholder = ''; }
+
+let marker = null;
+function setLatLng(newLat, newLon, updateCenter = true) {
+  lat = newLat;
+  lon = newLon;
+  selected = true;
+  document.getElementById('coordGrid').style.display = 'block';
+  document.getElementById('cvLat').textContent = lat.toFixed(6);
+  document.getElementById('cvLon').textContent = lon.toFixed(6);
+  if (updateCenter) {
+    map.setView([lat, lon], 16);
+  }
+  if (marker) {
+    marker.setLatLng([lat, lon]);
+  } else {
+    marker = L.marker([lat, lon]).addTo(map);
+  }
+  fetchElevation(lat, lon);
+  updateStatus();
+}
+
+map.on('click', function(e) {
+  setLatLng(e.latlng.lat, e.latlng.lng, false);
+});
+
+async function fetchElevation(la, lo) {
+  elevState = 'loading';
+  updateElevUI();
+  elevSeq++;
+  const currentSeq = elevSeq;
+  const key = \`\${la.toFixed(4)},\${lo.toFixed(4)}\`;
+  if (elevCache.has(key)) {
+    elev = elevCache.get(key);
+    elevState = 'ok';
+    updateElevUI();
+    return;
+  }
+  try {
+    const res = await fetch(\`\${ELEV_API}?latitude=\${la}&longitude=\${lo}&elevation=srv\`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (currentSeq !== elevSeq) return;
+    if (data && typeof data.elevation === 'number') {
+      elev = Math.round(data.elevation);
+      elevCache.set(key, elev);
+      elevState = 'ok';
+    } else {
+      elev = 0;
+      elevState = 'ok';
+    }
+  } catch (e) {
+    if (currentSeq !== elevSeq) return;
+    elevState = 'fail';
+    elev = 0;
+  }
+  updateElevUI();
+}
+
+function updateElevUI() {
+  const altInput = document.getElementById('altInput');
+  if (altInput && elevState === 'ok' && document.activeElement !== altInput) {
+    altInput.value = elev;
+  }
 }
 
 function updateCoords() {
-  const grid = document.getElementById('coordGrid');
-  const coords = document.getElementById('coords');
-  if (!selected) {
-    grid.style.display = 'none';
-    coords.style.display = '';
-    coords.textContent = t('coords_hint');
-    return;
-  }
-  coords.style.display = 'none';
-  grid.style.display = '';
+  if (!selected) return;
   document.getElementById('cvLat').textContent = lat.toFixed(6);
   document.getElementById('cvLon').textContent = lon.toFixed(6);
 }
 
 function updateStatus() {
-  document.getElementById('status').textContent = (savedLon !== null)
-    ? t('written', savedLon, savedLat, savedTimeStr)
-    : t('status_hint');
-}
-
-function setPos(newLat, newLon, knownAlt) {
-  lat = newLat; lon = newLon; selected = true;
-  showMarker();
-  marker.setLatLng([lat, lon]);
-  if (typeof knownAlt === 'number') { elev = Math.round(knownAlt); elevState = 'ok'; elevCache.set(elevKey(lat, lon), elev); }
-  updateCoords();
-  fetchElevation(lat, lon);
-}
-
-function moveTo(newLat, newLon, zoom, knownAlt) {
-  setPos(newLat, newLon, knownAlt);
-  map.setView([lat, lon], zoom || 15);
-}
-
-/* ---- Elevation (Open-Meteo): debounced + cached, WGS-84 native ---- */
-function elevKey(la, lo) { return la.toFixed(4) + ',' + lo.toFixed(4); }
-function fetchElevation(la, lo) {
-  const key = elevKey(la, lo);
-  if (elevCache.has(key)) { elev = elevCache.get(key); elevState = (elev === null ? 'fail' : 'ok'); setAltInput(elev); return; }
-  elevState = 'loading'; elev = null;
-  const el = document.getElementById('altInput'); if (el) { el.value = ''; el.placeholder = t('alt_querying'); }
-  const seq = ++elevSeq;
-  clearTimeout(elevTimer);
-  elevTimer = setTimeout(function(){
-    fetch(ELEV_API + '?latitude=' + la + '&longitude=' + lo, { cache:'no-store' })
-      .then(r => r.json())
-      .then(d => {
-        const e = (d && d.elevation && d.elevation.length && d.elevation[0] !== null) ? Math.round(d.elevation[0]) : null;
-        elevCache.set(key, e);
-        if (seq === elevSeq) { elev = e; elevState = (e === null ? 'fail' : 'ok'); setAltInput(e); }
-      })
-      .catch(() => { if (seq === elevSeq) { elev = null; elevState = 'fail'; setAltInput(null); } });
-  }, 500);
-}
-
-let toastTimer = null;
-function toast(msg, ms) {
-  const t2 = document.getElementById('toast');
-  t2.textContent = msg; t2.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t2.classList.remove('show'), ms || 2500);
-}
-
-function showError(show) {
-  document.getElementById('errorBanner').style.display = show ? 'block' : 'none';
-}
-
-/* ---- Clipboard ---- */
-function copyText(str) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(str);
+  const statusEl = document.getElementById('status');
+  if (!selected) {
+    statusEl.textContent = t('status_hint');
+  } else {
+    statusEl.textContent = \`Target: \${lat.toFixed(6)}, \${lon.toFixed(6)} | Alt: \${document.getElementById('altInput').value || 0}m\`;
   }
-  return new Promise(function(resolve, reject){
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = str; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.focus(); ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      ok ? resolve() : reject(new Error('execCommand failed'));
-    } catch(e) { reject(e); }
-  });
 }
 
-function copyField(which, btn) {
-  if (!selected) { toast(t('pick_first')); return; }
-  let val;
-  if (which === 'lat') val = lat.toFixed(6);
-  else if (which === 'lon') val = lon.toFixed(6);
-  else { const a = currentAlt(); if (a === null) { toast(t('alt_na')); return; } val = String(a); }
-  copyText(val).then(() => {
-    toast(t('copied', val));
-    if (btn) { const o = btn.textContent; btn.classList.add('success'); btn.textContent = '✓'; setTimeout(() => { btn.textContent = o; btn.classList.remove('success'); }, 1200); }
-  }).catch(() => toast(t('copy_failed'), 3000));
+function renderActive() {
+  queryActive();
 }
 
-function moduleParamString() {
-  let s = 'latitude=' + lat.toFixed(6) + '&longitude=' + lon.toFixed(6);
-  const a = currentAlt(); if (a !== null) s += '&altitude=' + a;
-  s += '&horizontalAccuracy=' + haccVal() + '&verticalAccuracy=' + vaccVal();
-  const j = jitterVal(); if (j > 0) s += '&randomRadius=' + j;
-  return s;
+async function queryActive() {
+  const activeValue = document.getElementById('activeValue');
+  activeValue.textContent = t('querying');
+  try {
+    const res = await fetch('https://gs-loc.apple.com/ils-settings/active');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    activeLat = data.lat;
+    activeLon = data.lon;
+    activeAcc = data.accuracy;
+    activeAlt = data.alt;
+    activeValue.textContent = \`\${activeLat.toFixed(6)}, \${activeLon.toFixed(6)} (alt: \${activeAlt}m, acc: \${activeAcc}m)\`;
+  } catch (e) {
+    activeValue.textContent = t('no_saved');
+  }
+}
+
+async function save() {
+  const alt = parseFloat(document.getElementById('altInput').value) || 0;
+  const hacc = parseFloat(document.getElementById('haccInput').value) || 39;
+  const vacc = parseFloat(document.getElementById('vaccInput').value) || 1000;
+  const jitter = parseFloat(document.getElementById('jitterInput').value) || 0;
+  showToast(t('saving'));
+  try {
+    const res = await fetch(SAVE_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lat, lon, alt, horizontalAccuracy: hacc, verticalAccuracy: vacc, jitter})
+    });
+    if (!res.ok) throw new Error();
+    savedLat = lat;
+    savedLon = lon;
+    savedTimeStr = new Date().toLocaleTimeString();
+    showToast(t('saved_toast'));
+    updateStatus();
+    queryActive();
+  } catch (e) {
+    showToast(t('save_failed'));
+  }
+}
+
+async function restoreReal() {
+  try {
+    await fetch('https://gs-loc.apple.com/ils-settings/restore', { method: 'POST' });
+    showToast(t('restored'));
+    queryActive();
+  } catch (e) {
+    showToast(t('clear_failed_cfg'));
+  }
+}
+
+async function clearActive() {
+  if (!confirm(t('clear_confirm'))) return;
+  await restoreReal();
+  showToast(t('dev_cleared'));
+}
+
+function copyField(field, btn) {
+  let val = '';
+  if (field === 'lat') val = lat.toFixed(6);
+  if (field === 'lon') val = lon.toFixed(6);
+  if (field === 'alt') val = document.getElementById('altInput').value || '0';
+  navigator.clipboard.writeText(val);
+  showToast(t('copied', val));
 }
 
 function copyParams(btn) {
-  if (!selected) { toast(t('pick_first')); return; }
-  const s = moduleParamString();
-  copyText(s).then(() => {
-    toast(t('copied', s));
-    if (currentAlt() === null) toast(t('alt_unknown_copy'), 3000);
-    if (btn) { const o = btn.textContent; btn.classList.add('success'); btn.textContent = t('saved'); setTimeout(() => { btn.textContent = o; btn.classList.remove('success'); }, 1200); }
-  }).catch(() => toast(t('copy_failed'), 3000));
+  const alt = document.getElementById('altInput').value || 0;
+  const hacc = document.getElementById('haccInput').value || 39;
+  const vacc = parseFloat(document.getElementById('vaccInput').value) || 1000;
+  const jitter = parseFloat(document.getElementById('jitterInput').value) || 0;
+  const str = JSON.stringify({lat, lon, alt, hacc, vacc, jitter});
+  navigator.clipboard.writeText(str);
+  showToast(t('copied', str));
 }
 
-/* ---- Favorites (localStorage) ---- */
-function getFavs() {
-  try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
-}
-function saveFavs(favs) {
-  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
-}
+let favorites = [];
+try {
+  favorites = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+} catch(e) {}
 
 function renderFavs() {
-  const favs = getFavs();
-  const el = document.getElementById('favList');
+  const listEl = document.getElementById('favList');
   const clearBtn = document.getElementById('clearAllBtn');
-  clearBtn.style.display = favs.length ? '' : 'none';
-  if (!favs.length) {
-    el.innerHTML = '<div class="fav-empty">' + escHtml(t('fav_empty')) + '<\\/div>';
+  if (!favorites.length) {
+    listEl.innerHTML = \`<div class="fav-empty">\${t('fav_empty')}</div>\`;
+    if (clearBtn) clearBtn.style.display = 'none';
     return;
   }
-  el.innerHTML = favs.map((f, i) => {
-    const isActive = activeLon !== null && Math.abs(f.lon - activeLon) < 0.000001 && Math.abs(f.lat - activeLat) < 0.000001;
-    const altStr = (typeof f.alt === 'number') ? ('  ·  ' + f.alt + ' m') : '';
-    return '<div class="fav-item" onclick="loadFav(' + i + ')">' +
-      '<div class="fav-info">' +
-        '<div class="fav-name">' + escHtml(f.name) + '<\\/div>' +
-        '<div class="fav-coords">' + f.lon.toFixed(6) + ', ' + f.lat.toFixed(6) + altStr + '<\\/div>' +
-        (isActive ? '<div class="fav-active">' + escHtml(t('active_now')) + '<\\/div>' : '') +
-      '<\\/div>' +
-      '<button class="fav-del" onclick="event.stopPropagation();delFav(' + i + ')" title="' + escHtml(t('del')) + '">\\u00d7<\\/button>' +
-    '<\\/div>';
-  }).join('');
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (clearBtn) clearBtn.style.display = 'inline-block';
+  listEl.innerHTML = favorites.map((f, i) => \`
+    <div class="fav-item" onclick="setLatLng(\${f.lat}, \${f.lon}); showToast('Loaded: \${f.name}');">
+      <div class="fav-info">
+        <div class="fav-name">\${f.name}</div>
+        <div class="fav-coords">\${f.lat.toFixed(6)}, \${f.lon.toFixed(6)}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation(); deleteFav(\${i});">×</button>
+    </div>
+  \`).join('');
 }
 
 function addFav() {
-  if (!selected) { toast(t('pick_first')); return; }
-  var _fa = currentAlt();
-  document.getElementById('favModalCoords').textContent = lon.toFixed(6) + ', ' + lat.toFixed(6) + (_fa !== null ? ('  ·  ' + _fa + ' m') : '');
+  if (!selected) {
+    showToast(t('pick_first'));
+    return;
+  }
+  document.getElementById('favModalCoords').textContent = \`\${lat.toFixed(6)}, \${lon.toFixed(6)}\`;
   document.getElementById('favNameInput').value = '';
   document.getElementById('favModal').classList.add('show');
-  setTimeout(() => document.getElementById('favNameInput').focus(), 100);
 }
 
 function closeFavModal() {
@@ -626,254 +643,110 @@ function closeFavModal() {
 }
 
 function confirmFav() {
-  const name = document.getElementById('favNameInput').value.trim();
-  if (!name) { toast(t('enter_label')); return; }
-  const favs = getFavs();
-  const rec = { name, lon, lat, time: new Date().toISOString() };
-  const _ca = currentAlt(); if (_ca !== null) rec.alt = _ca;
-  favs.push(rec);
-  saveFavs(favs);
+  const name = document.getElementById('favNameInput').value.trim() || \`Point \${favorites.length + 1}\`;
+  favorites.push({ name, lat, lon });
+  localStorage.setItem(FAV_KEY, JSON.stringify(favorites));
   closeFavModal();
   renderFavs();
-  toast(t('added', name));
+  showToast(t('added', name));
 }
 
-function loadFav(i) {
-  const favs = getFavs();
-  if (!favs[i]) return;
-  moveTo(favs[i].lat, favs[i].lon, 15, typeof favs[i].alt === 'number' ? favs[i].alt : undefined);
-  toast(favs[i].name + ' (' + favs[i].lon.toFixed(4) + ', ' + favs[i].lat.toFixed(4) + ')');
-}
-
-function delFav(i) {
-  const favs = getFavs();
-  if (!favs[i]) return;
-  const name = favs[i].name;
-  favs.splice(i, 1);
-  saveFavs(favs);
+function deleteFav(i) {
+  const item = favorites[i];
+  favorites.splice(i, 1);
+  localStorage.setItem(FAV_KEY, JSON.stringify(favorites));
   renderFavs();
-  toast(t('deleted', name));
+  if (item) showToast(t('deleted', item.name));
 }
 
 function clearAllFav() {
   if (!confirm(t('clear_fav_confirm'))) return;
-  saveFavs([]);
+  favorites = [];
+  localStorage.setItem(FAV_KEY, JSON.stringify(favorites));
   renderFavs();
-  toast(t('all_cleared'));
-}
-
-/* ---- Active location query ---- */
-function renderActive() {
-  const el = document.getElementById('activeValue');
-  if (activeStatus === 'ok') {
-    el.textContent = t('lon') + ' ' + activeLon.toFixed(6) + '  ' + t('lat') + ' ' + activeLat.toFixed(6)
-      + (activeAcc ? ('  ' + t('acc') + ' ' + activeAcc + 'm') : '')
-      + (activeAlt !== null && activeAlt !== undefined ? ('  ' + t('alt') + ' ' + activeAlt + 'm') : '');
-  } else if (activeStatus === 'none') {
-    el.textContent = t('no_saved');
-  } else if (activeStatus === 'failed') {
-    el.textContent = t('query_failed');
-  } else if (activeStatus === 'cleared') {
-    el.textContent = t('cleared');
-  } else {
-    el.textContent = t('querying');
-  }
-}
-
-function queryActive() {
-  activeStatus = 'querying';
-  renderActive();
-  fetch(SAVE_API + '?action=query', { method:'GET', mode:'cors', cache:'no-store' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success && d.longitude && d.latitude) {
-        activeLon = parseFloat(d.longitude);
-        activeLat = parseFloat(d.latitude);
-        activeAcc = (d.horizontalAccuracy != null ? d.horizontalAccuracy : (d.accuracy || null));
-        activeAlt = (d.altitude !== undefined && d.altitude !== null) ? d.altitude : null;
-        // Reflect the device's stored jitter radius back into the input (Yu9191 v1.1).
-        if (d.randomRadius != null) { const ji = document.getElementById('jitterInput'); if (ji) ji.value = d.randomRadius; }
-        activeStatus = 'ok';
-        if (!didInitialCenter && !selected) {
-          didInitialCenter = true;
-          moveTo(activeLat, activeLon, 15, (activeAlt !== null && activeAlt !== undefined) ? activeAlt : undefined);
-        }
-      } else {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'none';
-      }
-      renderActive();
-      renderFavs();
-    })
-    .catch(() => { activeStatus = 'failed'; renderActive(); });
-}
-
-function clearActive() {
-  if (!confirm(t('clear_confirm'))) return;
-  fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'cleared';
-        renderActive();
-        renderFavs();
-        toast(t('dev_cleared'));
-      } else { toast(t('clear_failed', d.error || ''), 3000); }
-    })
-    .catch(() => { toast(t('clear_failed_cfg'), 3000); });
-}
-
-/* ---- Save to device ---- */
-async function save() {
-  if (!selected) { toast(t('pick_first')); return; }
-  const btn = document.getElementById('saveBtn');
-  btn.textContent = t('saving'); btn.disabled = true;
-  showError(false);
-  try {
-    let url = SAVE_API + '?lon=' + lon + '&lat=' + lat;
-    const a = currentAlt(); if (a !== null) url += '&alt=' + a;
-    url += '&hacc=' + haccVal() + '&vacc=' + vaccVal() + '&randomRadius=' + jitterVal();
-    const r = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
-    const d = await r.json();
-    if (d.success) {
-      activeLon = lon; activeLat = lat; activeAcc = haccVal();
-      activeAlt = currentAlt();
-      activeStatus = 'ok';
-      savedLon = lon; savedLat = lat; savedTimeStr = new Date().toLocaleTimeString();
-      btn.textContent = t('saved'); btn.className = 'btn btn-primary success';
-      updateStatus();
-      renderActive();
-      renderFavs();
-      toast(t('saved_toast'), 30000);
-      setTimeout(() => { btn.textContent = t('save'); btn.className='btn btn-primary'; btn.disabled=false; }, 2500);
-    } else {
-      throw new Error(d.error || t('write_failed'));
-    }
-  } catch(e) {
-    btn.textContent = t('save'); btn.className = 'btn btn-primary'; btn.disabled = false;
-    showError(true);
-    toast(t('save_failed'), 4000);
-  }
+  showToast(t('all_cleared'));
 }
 
 function locateMe() {
-  if (!navigator.geolocation) return toast(t('no_geo'));
-  toast(t('getting_loc'));
-  navigator.geolocation.getCurrentPosition(
-    pos => { moveTo(pos.coords.latitude, pos.coords.longitude, 16); toast(t('got_loc')); },
-    err => toast(t('loc_failed', err.message), 3000),
-    { enableHighAccuracy:true, timeout:10000 }
-  );
-}
-
-/* Local fallback for plain "lat, lon" text when the parse API is unreachable. */
-function parseLocalCoords(text) {
-  const m = text.match(/(-?[0-9]+\\.[0-9]+)[,\\s]+(-?[0-9]+\\.[0-9]+)/);
-  if (!m) return null;
-  const a = parseFloat(m[1]), b = parseFloat(m[2]);
-  if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return { lat: a, lon: b };
-  if (Math.abs(b) <= 90 && Math.abs(a) <= 180) return { lat: b, lon: a };
-  return { lat: a, lon: b };
+  if (!navigator.geolocation) {
+    showToast(t('no_geo'));
+    return;
+  }
+  showToast(t('getting_loc'));
+  navigator.geolocation.getCurrentPosition(pos => {
+    setLatLng(pos.coords.latitude, pos.coords.longitude, true);
+    showToast(t('got_loc'));
+  }, err => {
+    showToast(t('loc_failed', err.message));
+  }, { enableHighAccuracy: true });
 }
 
 async function parseUrl() {
-  const input = document.getElementById('urlInput').value.trim();
-  if (!input) return toast(t('paste_first'));
-  toast(t('parsing'));
+  const val = document.getElementById('urlInput').value.trim();
+  if (!val) {
+    showToast(t('paste_first'));
+    return;
+  }
+  const coordMatch = val.match(/^(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)$/);
+  if (coordMatch) {
+    setLatLng(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]), true);
+    showToast(t('parsed', parseFloat(coordMatch[2]), parseFloat(coordMatch[1])));
+    return;
+  }
+  showToast(t('parsing'));
   try {
-    const r = await fetch(PARSE_API + '?format=json&u=' + encodeURIComponent(input), { cache:'no-store' });
-    const d = await r.json();
-    if (d && typeof d.lat === 'number' && typeof d.lon === 'number') {
-      moveTo(d.lat, d.lon, 15);
-      toast(d.name ? (d.name + ' (' + d.lon.toFixed(4) + ', ' + d.lat.toFixed(4) + ')') : t('parsed', d.lon, d.lat));
-      return;
+    const res = await fetch(\`\${PARSE_API}?url=\${encodeURIComponent(val)}\`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.lat && data.lon) {
+      setLatLng(data.lat, data.lon, true);
+      showToast(t('parsed', data.lon, data.lat));
+    } else {
+      throw new Error();
     }
-    throw new Error(d && d.error ? d.error : 'parse failed');
-  } catch(e) {
-    const local = parseLocalCoords(input);
-    if (local) { moveTo(local.lat, local.lon, 15); toast(t('parsed', local.lon, local.lat)); return; }
-    toast(t('parse_failed'), 3000);
+  } catch (e) {
+    showToast(t('parse_failed'));
   }
 }
 
-let searchResults = [];
 async function searchPlace() {
   const q = document.getElementById('searchInput').value.trim();
-  if (!q) return toast(t('enter_place'));
-  const box = document.getElementById('searchResults');
-  box.innerHTML = '<div class="search-item">' + escHtml(t('searching')) + '<\\/div>';
+  if (!q) {
+    showToast(t('enter_place'));
+    return;
+  }
+  showToast(t('searching'));
   try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q), { headers: { 'Accept-Language': (lang === 'zh' ? 'zh-CN' : 'en') } });
-    searchResults = await r.json();
-    if (!searchResults.length) { box.innerHTML = ''; toast(t('not_found', q), 3000); return; }
-    box.innerHTML = searchResults.map(function(p, i){
-      const name = p.display_name || '';
-      return '<div class="search-item" onclick="selectSearchResult(' + i + ')">' +
-        '<div class="si-name">' + escHtml(name.split(',')[0]) + '<\\/div>' +
-        '<div class="si-sub">' + escHtml(name) + '<\\/div>' +
-      '<\\/div>';
-    }).join('');
-  } catch(e) { box.innerHTML = ''; toast(t('search_failed'), 3000); }
-}
-function selectSearchResult(i) {
-  const p = searchResults[i];
-  if (!p) return;
-  moveTo(parseFloat(p.lat), parseFloat(p.lon), 15);
-  toast((p.display_name || '').slice(0, 40));
-}
-function restoreReal() {
-  fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) {
-        activeLon = null; activeLat = null; activeAcc = null; activeAlt = null;
-        activeStatus = 'cleared'; savedLon = null;
-        updateStatus(); renderActive(); renderFavs();
-        toast(t('restored'), 30000);
-      } else { toast(t('clear_failed_cfg'), 3000); }
-    })
-    .catch(() => toast(t('clear_failed_cfg'), 3000));
-}
-
-document.addEventListener('paste', e => {
-  const text = (e.clipboardData||window.clipboardData).getData('text');
-  if (text && (text.includes('map') || text.includes('loc') || text.includes('lnglat') || text.includes('baidu') || /[0-9]+\\.[0-9]+/.test(text))) {
-    document.getElementById('urlInput').value = text;
-    setTimeout(parseUrl, 200);
-  }
-});
-document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') searchPlace(); });
-document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') parseUrl(); });
-document.getElementById('favNameInput').addEventListener('keydown', e => { if(e.key==='Enter') confirmFav(); });
-
-/* ---- Watermark: tiled, non-interactive, rebuilt if tampered with ---- */
-const WM_TEXT = '根据GitHub开源项目制作';
-function buildWM() {
-  let host = document.getElementById('wm');
-  if (!host) { host = document.createElement('div'); host.id = 'wm'; host.className = 'wm'; host.setAttribute('aria-hidden','true'); document.body.appendChild(host); }
-  host.className = 'wm'; host.removeAttribute('style');
-  const n = Math.ceil((window.innerWidth * window.innerHeight) / 12000) + 40;
-  let s = '';
-  for (let i = 0; i < n; i++) s += '<span>' + WM_TEXT + '<\\/span>';
-  host.innerHTML = '<div class="wm-i" id="wmi">' + s + '<\\/div>';
-}
-function ensureWM() {
-  const host = document.getElementById('wm'), inner = document.getElementById('wmi');
-  if (!host || !inner || inner.textContent.indexOf('CyberHandyman') < 0) { buildWM(); return; }
-  const ch = getComputedStyle(host), ci = getComputedStyle(inner);
-  if (ch.display === 'none' || ch.visibility === 'hidden' || ch.position !== 'fixed' || parseFloat(ci.opacity) < 0.03) {
-    host.removeAttribute('style'); inner.removeAttribute('style'); buildWM();
+    const res = await fetch(\`https://nominatim.openstreetmap.org/search?format=json&q=\${encodeURIComponent(q)}\`, {
+      headers: {'Accept-Language': lang === 'zh' ? 'zh-CN,zh;q=0.9' : 'en'}
+    });
+    const data = await res.json();
+    const resultsEl = document.getElementById('searchResults');
+    if (!data || !data.length) {
+      resultsEl.innerHTML = \`<div class="search-item"><div class="si-name">\${t('not_found', q)}</div></div>\`;
+      return;
+    }
+    resultsEl.innerHTML = data.slice(0, 5).map(item => \`
+      <div class="search-item" onclick="setLatLng(\${parseFloat(item.lat)}, \${parseFloat(item.lon)}, true); document.getElementById('searchResults').innerHTML='';">
+        <div class="si-name">\${item.display_name.split(',')[0]}</div>
+        <div class="si-sub">\${item.display_name}</div>
+      </div>
+    \`).join('');
+  } catch(e) {
+    showToast(t('search_failed'));
   }
 }
-buildWM();
-try { new MutationObserver(ensureWM).observe(document.body, { childList: true }); } catch(e) {}
-setInterval(ensureWM, 1500);
-window.addEventListener('resize', buildWM);
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
 
 applyI18n();
 queryActive();
-<\/script>
+</script>
 </body>
 </html>`;
 }
