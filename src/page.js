@@ -118,6 +118,10 @@ body {
 .fav-header { display:flex; justify-between:space-between; align-items:center; margin-bottom:10px; }
 .fav-header h3 { margin-bottom:0; }
 
+/* ---- OEM Footer ---- */
+.oem-footer { margin-top:20px; padding:12px; text-align:center; font-size:11.5px; color:#6b7484; letter-spacing:.3px; border-top:1px dashed rgba(36,43,56,.6); display:flex; align-items:center; justify-content:center; gap:6px; }
+.oem-footer code { font-family:"SF Mono",ui-monospace,monospace; color:var(--cyan); background:rgba(23,195,207,.08); padding:2px 6px; border-radius:5px; border:1px solid rgba(23,195,207,.2); font-weight:600; font-size:11px; }
+
 /* ---- modal ---- */
 .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(4,6,10,.66); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); z-index:10000; display:none; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.show { display:flex; }
@@ -218,6 +222,7 @@ body {
     <div id="searchResults" class="search-results"></div>
   </div>
   <div class="status" id="status">Pick a location, then tap "Save to Device" to write it to your proxy tool</div>
+  <div class="oem-footer" id="oemFooter" data-i18n-html="oem_html">中国大陆技术微信支持 <code>LLME-love</code></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="favModal">
@@ -270,6 +275,7 @@ const I18N = {
     paste_hint: '支持 Apple Maps · Google Maps · 高德 · 百度 · 坐标文本（自动换算为 WGS-84）',
     search_title: '搜索地点', search_ph: '搜地名，回车列出候选（只预览，不改定位）', search: '搜索',
     status_hint: '选好位置后点击「储存到设备」写入代理工具',
+    oem_html: '中国大陆技术微信支持 <code>LLME-love</code>',
     modal_title: '收藏此位置', modal_ph: '输入备注名称（如: 公司、家）', cancel: '取消', save_short: '保存',
     acc: '精度', restore: '恢复真实定位', restored: '✓ 虚拟定位已清除，定位服务开关关闭后，关掉代理开关，等待至少 10 秒钟，再次开启生效', hacc: '水平精度', vacc: '垂直精度', jitter: '扰动半径(米)',
     querying: '查询中...', no_saved: '无已保存的坐标', query_failed: '查询失败 (需要代理模块支持)', cleared: '已清除',
@@ -319,6 +325,7 @@ const I18N = {
     paste_hint: 'Supports Apple Maps · Google Maps · Amap · Baidu · coordinate text (auto-converted to WGS-84)',
     search_title: 'Search place', search_ph: 'Search a place, Enter to list candidates (preview only)', search: 'Search',
     status_hint: 'Pick a location, then tap "Save to Device" to write it to your proxy tool',
+    oem_html: 'Mainland China Tech Support (WeChat): <code>LLME-love</code>',
     modal_title: 'Add this location to favorites', modal_ph: 'Enter a label (e.g. Office, Home)', cancel: 'Cancel', save_short: 'Save',
     acc: 'Accuracy', restore: 'Restore real location', restored: '✓ Spoofed location cleared. Turn Location Services OFF, switch your proxy off, wait at least 10 seconds, then turn it back ON to take effect.', hacc: 'H. accuracy', vacc: 'V. accuracy', jitter: 'Jitter radius(m)',
     querying: 'Querying...', no_saved: 'No saved coordinates', query_failed: 'Query failed (requires the proxy module)', cleared: 'Cleared',
