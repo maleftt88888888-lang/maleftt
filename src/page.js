@@ -13,8 +13,9 @@ export function getPageHtml() {
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<!-- 优化：替换为国内 Baomitu CDN 加速 Leaflet 加载 -->
+<link rel="stylesheet" href="https://cdn.baomitu.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+<script src="https://cdn.baomitu.com/ajax/libs/leaflet/1.9.4/leaflet.js"><\/script>
 <style>
 :root {
   --bg:#0a0c11; --card:#12161d; --card2:#191e28; --line:#242b38; --inset:rgba(255,255,255,.045);
@@ -152,9 +153,10 @@ body {
   <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
 </div>
 <div class="layer-switch">
-  <button class="layer-btn active" data-layer="satellite" data-i18n="layer_satellite" onclick="switchLayer('satellite')">Satellite</button>
+  <button class="layer-btn" data-layer="satellite" data-i18n="layer_satellite" onclick="switchLayer('satellite')">Satellite</button>
   <button class="layer-btn" data-layer="wgs84" onclick="switchLayer('wgs84')">WGS84</button>
-  <button class="layer-btn" data-layer="amap" data-i18n="layer_amap" onclick="switchLayer('amap')">Amap</button>
+  <!-- 优化：将高德设为默认图层 -->
+  <button class="layer-btn active" data-layer="amap" data-i18n="layer_amap" onclick="switchLayer('amap')">Amap</button>
   <button class="layer-btn" data-layer="voyager" data-i18n="layer_color" onclick="switchLayer('voyager')">Color</button>
   <button class="layer-btn" data-layer="standard" data-i18n="layer_standard" onclick="switchLayer('standard')">Standard</button>
   <button class="layer-btn" data-layer="dark" data-i18n="layer_dark" onclick="switchLayer('dark')">Dark</button>
@@ -355,6 +357,35 @@ const I18N = {
   }
 };
 
+/* ---- 核心优化：火星坐标系 (GCJ-02) 转 WGS-84 ---- */
+function gcj02ToWgs84(lng, lat) {
+  if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) return { lat: lat, lng: lng };
+  const a = 6378137.0, ee = 0.00669342162296594323;
+  const transformLat = function(x, y) {
+    let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+    ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
+    ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
+    return ret;
+  };
+  const transformLng = function(x, y) {
+    let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+    ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
+    ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
+    return ret;
+  };
+  let dLat = transformLat(lng - 105.0, lat - 35.0);
+  let dLng = transformLng(lng - 105.0, lat - 35.0);
+  const radLat = lat / 180.0 * Math.PI;
+  let magic = Math.sin(radLat);
+  magic = 1 - ee * magic * magic;
+  const sqrtMagic = Math.sqrt(magic);
+  dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+  dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+  return { lat: lat - dLat, lng: lng - dLng };
+}
+
 function detectLang() {
   try {
     const saved = localStorage.getItem(LANG_KEY);
@@ -389,7 +420,7 @@ function setLang(l) {
   applyI18n();
 }
 
-const map = L.map('map').setView([20, 0], 2);
+const map = L.map('map').setView([39.9042, 116.4074], 12);
 const tiles = {
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS'}),
   wgs84: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS WGS84'}),
@@ -398,8 +429,10 @@ const tiles = {
   amap: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {maxZoom:18, subdomains:'1234', attribution:'\\u00a9 Amap'}),
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'\\u00a9 Carto'})
 };
-let currentLayer = tiles.satellite;
+/* 优化：默认开启高德地图图层 */
+let currentLayer = tiles.amap;
 currentLayer.addTo(map);
+
 function switchLayer(name) {
   map.removeLayer(currentLayer);
   currentLayer = tiles[name];
@@ -757,31 +790,45 @@ async function parseUrl() {
   }
 }
 
+/* ---- 优化：使用高德 API 防抖搜索 ---- */
 let searchResults = [];
-async function searchPlace() {
+let searchTimer = null;
+function searchPlace() {
   const q = document.getElementById('searchInput').value.trim();
   if (!q) return toast(t('enter_place'));
   const box = document.getElementById('searchResults');
   box.innerHTML = '<div class="search-item">' + escHtml(t('searching')) + '<\\/div>';
-  try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q), { headers: { 'Accept-Language': (lang === 'zh' ? 'zh-CN' : 'en') } });
-    searchResults = await r.json();
-    if (!searchResults.length) { box.innerHTML = ''; toast(t('not_found', q), 3000); return; }
-    box.innerHTML = searchResults.map(function(p, i){
-      const name = p.display_name || '';
-      return '<div class="search-item" onclick="selectSearchResult(' + i + ')">' +
-        '<div class="si-name">' + escHtml(name.split(',')[0]) + '<\\/div>' +
-        '<div class="si-sub">' + escHtml(name) + '<\\/div>' +
-      '<\\/div>';
-    }).join('');
-  } catch(e) { box.innerHTML = ''; toast(t('search_failed'), 3000); }
+  
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    try {
+      // 调用 Worker 的代理路由请求高德 API，避免前端暴露密钥
+      const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+      searchResults = await r.json();
+      if (!searchResults || !searchResults.length) { 
+        box.innerHTML = ''; toast(t('not_found', q), 3000); return; 
+      }
+      box.innerHTML = searchResults.map(function(p, i){
+        const name = p.name || '';
+        const address = p.address || '';
+        return '<div class="search-item" onclick="selectSearchResult(' + i + ')">' +
+          '<div class="si-name">' + escHtml(name) + '<\\/div>' +
+          '<div class="si-sub">' + escHtml(address) + '<\\/div>' +
+        '<\\/div>';
+      }).join('');
+    } catch(e) { box.innerHTML = ''; toast(t('search_failed'), 3000); }
+  }, 350); // 350ms防抖
 }
+
+/* 优化：搜索选中后，对高德 GCJ-02 进行 WGS-84 纠偏转换 */
 function selectSearchResult(i) {
   const p = searchResults[i];
   if (!p) return;
-  moveTo(parseFloat(p.lat), parseFloat(p.lon), 15);
-  toast((p.display_name || '').slice(0, 40));
+  const wgs = gcj02ToWgs84(parseFloat(p.lng), parseFloat(p.lat));
+  moveTo(wgs.lat, wgs.lng, 15);
+  toast((p.name || '').slice(0, 40));
 }
+
 function restoreReal() {
   fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
     .then(r => r.json())
