@@ -122,6 +122,45 @@ app.get("/ios-location-spoofer.stoverride", (c) => c.body(stoverride(new URL(c.r
 app.get("/ios-location-spoofer.lnplugin", (c) => c.body(lnplugin(new URL(c.req.url).origin), 200, TXT));
 app.get("/ios-location-spoofer.snippet", (c) => c.body(qxsnippet(new URL(c.req.url).origin), 200, TXT));
 
+/* ---- 地点搜索 API (高德地图 Web服务代理) ---- */
+app.get("/api/search", async (c) => {
+  const query = c.req.query("q") || "";
+  c.header("Access-Control-Allow-Origin", "*");
+  
+  if (!query) {
+    return c.json([]);
+  }
+
+  const amapKey = c.env && c.env.AMAP_KEY;
+  if (!amapKey) {
+    return c.json({ error: "未配置 AMAP_KEY 环境变量" }, 500);
+  }
+
+  try {
+    const amapUrl = `https://restapi.amap.com/v3/place/text?key=${amapKey}&keywords=${encodeURIComponent(query)}&offset=10&page=1`;
+    const res = await fetch(amapUrl);
+    const data = await res.json();
+
+    if (data.status !== "1" || !data.pois) {
+      return c.json([]);
+    }
+
+    const results = data.pois.map((poi) => {
+      const [lng, lat] = poi.location.split(",").map(Number);
+      return {
+        name: poi.name,
+        address: typeof poi.address === "string" ? poi.address : poi.adname || "",
+        lat,
+        lng,
+      };
+    });
+
+    return c.json(results);
+  } catch (e) {
+    return c.json({ error: String(e && e.message ? e.message : e) }, 500);
+  }
+});
+
 app.get("/api/parse", async (c) => {
   const raw = c.req.query("u") || "";
   const cs = (c.req.query("cs") || "").toLowerCase();
@@ -163,7 +202,7 @@ app.post("/tg", async (c) => {
   if (token && chatId && (cmd === "/link" || cmd === "/links" || cmd === "/start")) {
     const origin = new URL(c.req.url).origin;
     const reply =
-      "📍 iOS 虚拟定位 · 选点主页\n" + origin + "/\n\n" 
+      "📍 iOS 虚拟定位 · 选点主页\n" + origin + "/\n\n" +
       "⚠️ 可乐加糖独家版本";
     await fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
       method: "POST",
