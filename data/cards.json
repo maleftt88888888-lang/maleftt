@@ -1,0 +1,67 @@
+[
+  {
+    "id": "card_1",
+    "key": "VIP888",
+    "plan": "VIP 永久授权",
+    "status": "active",
+    "boundDeviceId": "TEST-DEV-2",
+    "boundDeviceName": "Second Phone",
+    "boundAt": "2026-09-17T07:32:05.620Z",
+    "unbindCount": 1,
+    "maxUnbinds": 5,
+    "createdAt": "2026-09-17T07:31:53.012Z",
+    "remark": "系统预设VIP卡密"
+  },
+  {
+    "id": "card_2",
+    "key": "VIP888888",
+    "plan": "VIP 永久授权",
+    "status": "active",
+    "boundDeviceId": null,
+    "boundDeviceName": null,
+    "boundAt": null,
+    "unbindCount": 0,
+    "maxUnbinds": 5,
+    "createdAt": "2026-09-17T07:31:53.013Z",
+    "remark": "系统预设VIP卡密"
+  },
+  {
+    "id": "card_3",
+    "key": "ILS-VIP-2026",
+    "plan": "年度旗舰版",
+    "status": "active",
+    "boundDeviceId": null,
+    "boundDeviceName": null,
+    "boundAt": null,
+    "unbindCount": 0,
+    "maxUnbinds": 5,
+    "createdAt": "2026-09-17T07:31:53.013Z",
+    "remark": "旗舰会员卡密"
+  },
+  {
+    "id": "card_4",
+    "key": "LOC-PRO-8888",
+    "plan": "专业尊享版",
+    "status": "active",
+    "boundDeviceId": null,
+    "boundDeviceName": null,
+    "boundAt": null,
+    "unbindCount": 0,
+    "maxUnbinds": 5,
+    "createdAt": "2026-09-17T07:31:53.013Z",
+    "remark": "专业版卡密"
+  },
+  {
+    "id": "card_5",
+    "key": "MALEFTT-8888",
+    "plan": "VIP 永久授权",
+    "status": "active",
+    "boundDeviceId": null,
+    "boundDeviceName": null,
+    "boundAt": null,
+    "unbindCount": 0,
+    "maxUnbinds": 10,
+    "createdAt": "2026-09-17T07:31:53.013Z",
+    "remark": "管理员预留卡密"
+  }
+]

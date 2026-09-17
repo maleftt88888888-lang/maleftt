@@ -1,13 +1,18 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "npx wrangler dev",
+    "dev": "node server.js",
+    "build": "node scripts/build-single.mjs",
+    "start": "node server.js",
+    "lint": "node --check server.js src/*.js",
     "deploy": "npx wrangler deploy --minify",
     "build:single": "node scripts/build-single.mjs",
     "icons": "python3 scripts/gen_icons.py",
     "gen:modules": "node scripts/gen-modules.mjs"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.1",
     "hono": "^4.10.6"
-  },"name": "maleftt"
+  },
+  "name": "maleftt"
 }

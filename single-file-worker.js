@@ -38,6 +38,991 @@ class Hono {
   }
 }
 
+/* ==== inlined from src/store.js ==== */
+
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import path from "node:path";
+
+const DATA_FILE = path.resolve(process.cwd(), "data", "cards.json");
+
+const DEFAULT_CARDS = [
+  {
+    id: "card_1",
+    key: "VIP888",
+    plan: "VIP 永久授权",
+    status: "active",
+    boundDeviceId: null,
+    boundDeviceName: null,
+    boundAt: null,
+    unbindCount: 0,
+    maxUnbinds: 5,
+    createdAt: new Date().toISOString(),
+    remark: "系统预设VIP卡密",
+  },
+  {
+    id: "card_2",
+    key: "VIP888888",
+    plan: "VIP 永久授权",
+    status: "active",
+    boundDeviceId: null,
+    boundDeviceName: null,
+    boundAt: null,
+    unbindCount: 0,
+    maxUnbinds: 5,
+    createdAt: new Date().toISOString(),
+    remark: "系统预设VIP卡密",
+  },
+  {
+    id: "card_3",
+    key: "ILS-VIP-2026",
+    plan: "年度旗舰版",
+    status: "active",
+    boundDeviceId: null,
+    boundDeviceName: null,
+    boundAt: null,
+    unbindCount: 0,
+    maxUnbinds: 5,
+    createdAt: new Date().toISOString(),
+    remark: "旗舰会员卡密",
+  },
+  {
+    id: "card_4",
+    key: "LOC-PRO-8888",
+    plan: "专业尊享版",
+    status: "active",
+    boundDeviceId: null,
+    boundDeviceName: null,
+    boundAt: null,
+    unbindCount: 0,
+    maxUnbinds: 5,
+    createdAt: new Date().toISOString(),
+    remark: "专业版卡密",
+  },
+  {
+    id: "card_5",
+    key: "MALEFTT-8888",
+    plan: "VIP 永久授权",
+    status: "active",
+    boundDeviceId: null,
+    boundDeviceName: null,
+    boundAt: null,
+    unbindCount: 0,
+    maxUnbinds: 10,
+    createdAt: new Date().toISOString(),
+    remark: "管理员预留卡密",
+  },
+];
+
+let inMemoryStore = null;
+
+function loadCards() {
+  if (inMemoryStore) return inMemoryStore;
+  try {
+    if (existsSync(DATA_FILE)) {
+      const raw = readFileSync(DATA_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        inMemoryStore = parsed;
+        return inMemoryStore;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load cards from file:", err);
+  }
+
+  // Fallback to default cards
+  inMemoryStore = JSON.parse(JSON.stringify(DEFAULT_CARDS));
+  saveCards();
+  return inMemoryStore;
+}
+
+function saveCards() {
+  if (!inMemoryStore) return;
+  try {
+    const dir = path.dirname(DATA_FILE);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(DATA_FILE, JSON.stringify(inMemoryStore, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save cards to file:", err);
+  }
+}
+
+function getAllCards() {
+  return loadCards();
+}
+
+function findCard(key) {
+  if (!key) return null;
+  const upper = String(key).trim().toUpperCase();
+  const list = loadCards();
+  return list.find((c) => c.key.toUpperCase() === upper) || null;
+}
+
+/**
+ * 验证并绑定设备
+ */
+function verifyAndBind(key, deviceId, deviceName) {
+  const card = findCard(key);
+  if (!card) {
+    return { valid: false, error: "卡密不存在或已作废，请核对后重试" };
+  }
+  if (card.status !== "active") {
+    return { valid: false, error: "该卡密已被禁用，请联系客服处理" };
+  }
+
+  const cleanDevId = deviceId ? String(deviceId).trim() : "";
+
+  // 如果该卡密尚未绑定任何设备
+  if (!card.boundDeviceId) {
+    if (cleanDevId) {
+      card.boundDeviceId = cleanDevId;
+      card.boundDeviceName = deviceName ? String(deviceName).slice(0, 80) : "未知设备";
+      card.boundAt = new Date().toISOString();
+      saveCards();
+    }
+    return {
+      valid: true,
+      card: sanitizeCard(card),
+      boundNow: !!cleanDevId,
+      message: "卡密验证成功，已绑定当前设备",
+    };
+  }
+
+  // 如果已经绑定，检查是否是同一台设备
+  if (cleanDevId && card.boundDeviceId === cleanDevId) {
+    // 同一台设备，允许通行
+    return {
+      valid: true,
+      card: sanitizeCard(card),
+      alreadyBound: true,
+      message: "设备授权校验通过",
+    };
+  }
+
+  // 绑定的不是当前设备：提示设备不匹配
+  return {
+    valid: false,
+    code: "DEVICE_MISMATCH",
+    error: "该卡密已绑定其他设备",
+    boundAt: card.boundAt,
+    boundDeviceName: card.boundDeviceName || "其他设备",
+    unbindCount: card.unbindCount || 0,
+    maxUnbinds: card.maxUnbinds ?? 5,
+    canSelfUnbind: (card.unbindCount || 0) < (card.maxUnbinds ?? 5),
+  };
+}
+
+/**
+ * 卡密换绑 / 解绑设备
+ * forceAdmin: 是否为管理员后台强制解绑（不消耗换绑次数）
+ */
+function unbindDevice(key, forceAdmin = false) {
+  const card = findCard(key);
+  if (!card) {
+    return { success: false, error: "卡密不存在" };
+  }
+  if (card.status !== "active" && !forceAdmin) {
+    return { success: false, error: "该卡密已处于禁用状态" };
+  }
+
+  if (!card.boundDeviceId) {
+    return { success: true, message: "该卡密当前未绑定任何设备，可直接使用", card: sanitizeCard(card) };
+  }
+
+  const maxUnbinds = card.maxUnbinds ?? 5;
+  const unbindCount = card.unbindCount || 0;
+
+  if (!forceAdmin && unbindCount >= maxUnbinds) {
+    return {
+      success: false,
+      error: `该卡密换绑次数已达上限 (${maxUnbinds}次)，请联系管理员微信处理`,
+    };
+  }
+
+  // 执行解绑
+  const previousDevice = card.boundDeviceName || card.boundDeviceId;
+  card.boundDeviceId = null;
+  card.boundDeviceName = null;
+  card.boundAt = null;
+  if (!forceAdmin) {
+    card.unbindCount = unbindCount + 1;
+  }
+  saveCards();
+
+  return {
+    success: true,
+    message: forceAdmin
+      ? "管理员已成功解绑该设备"
+      : `换绑成功！已解除对 [${previousDevice}] 的绑定，可在新设备上重新激活。`,
+    unbindCount: card.unbindCount,
+    maxUnbinds: card.maxUnbinds,
+    card: sanitizeCard(card),
+  };
+}
+
+/**
+ * 批量生成卡密
+ */
+function generateCards({ count = 1, prefix = "VIP-", plan = "VIP 永久授权", maxUnbinds = 5, remark = "" }) {
+  const list = loadCards();
+  const created = [];
+  const qty = Math.max(1, Math.min(200, Number(count) || 1));
+  const safePrefix = String(prefix || "").trim().toUpperCase();
+
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  for (let i = 0; i < qty; i++) {
+    let rand = "";
+    for (let j = 0; j < 8; j++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const key = `${safePrefix}${rand}`;
+    const newCard = {
+      id: "card_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6),
+      key,
+      plan: plan || "VIP 永久授权",
+      status: "active",
+      boundDeviceId: null,
+      boundDeviceName: null,
+      boundAt: null,
+      unbindCount: 0,
+      maxUnbinds: Math.max(0, Number(maxUnbinds) || 5),
+      createdAt: new Date().toISOString(),
+      remark: remark || "后台批量生成",
+    };
+    list.unshift(newCard);
+    created.push(newCard);
+  }
+
+  saveCards();
+  return created;
+}
+
+/**
+ * 更新卡密状态或信息
+ */
+function updateCard(key, fields) {
+  const card = findCard(key);
+  if (!card) return null;
+  if (fields.status !== undefined) card.status = fields.status;
+  if (fields.plan !== undefined) card.plan = fields.plan;
+  if (fields.remark !== undefined) card.remark = fields.remark;
+  if (fields.maxUnbinds !== undefined) card.maxUnbinds = Number(fields.maxUnbinds);
+  saveCards();
+  return sanitizeCard(card);
+}
+
+/**
+ * 删除卡密
+ */
+function deleteCard(key) {
+  const upper = String(key).trim().toUpperCase();
+  const list = loadCards();
+  const idx = list.findIndex((c) => c.key.toUpperCase() === upper);
+  if (idx === -1) return false;
+  list.splice(idx, 1);
+  saveCards();
+  return true;
+}
+
+/**
+ * 仪表盘统计数据
+ */
+function getStats() {
+  const list = loadCards();
+  const total = list.length;
+  const bound = list.filter((c) => !!c.boundDeviceId).length;
+  const unbound = list.filter((c) => !c.boundDeviceId && c.status === "active").length;
+  const disabled = list.filter((c) => c.status !== "active").length;
+
+  return {
+    total,
+    bound,
+    unbound,
+    disabled,
+  };
+}
+
+function sanitizeCard(card) {
+  if (!card) return null;
+  return {
+    key: card.key,
+    plan: card.plan,
+    status: card.status,
+    bound: !!card.boundDeviceId,
+    boundDeviceName: card.boundDeviceName,
+    boundAt: card.boundAt,
+    unbindCount: card.unbindCount || 0,
+    maxUnbinds: card.maxUnbinds ?? 5,
+    createdAt: card.createdAt,
+    remark: card.remark,
+  };
+}
+
+/* ==== inlined from src/admin.js ==== */
+
+function getAdminHtml() {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>后台管理系统 - 卡密与换绑中心</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-card: #161b22;
+  --bg-card2: #21262d;
+  --border: #30363d;
+  --border-focus: #58a6ff;
+  --txt: #c9d1d9;
+  --txt-bright: #f0f6fc;
+  --muted: #8b949e;
+  --cyan: #17c3cf;
+  --cyan-dark: #00818a;
+  --green: #238636;
+  --green-bright: #2ea043;
+  --red: #da3633;
+  --yellow: #d29922;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 16px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 { font-size: 18px; color: var(--txt-bright); font-weight: 700; }
+.badge-admin { font-size: 11px; background: rgba(23,195,207,.15); color: var(--cyan); border: 1px solid rgba(23,195,207,.3); padding: 2px 8px; border-radius: 12px; }
+.nav-links { display: flex; align-items: center; gap: 10px; }
+.nav-link { color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); transition: all .15s; }
+.nav-link:hover { color: var(--txt-bright); border-color: var(--muted); }
+.nav-link.danger { color: #ff7b72; border-color: rgba(255,123,114,.3); }
+
+/* Stats cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.stat-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.stat-val { font-size: 24px; font-weight: 800; color: var(--txt-bright); font-family: var(--font-mono); }
+.stat-val.cyan { color: var(--cyan); }
+.stat-val.green { color: #3fb950; }
+.stat-val.yellow { color: #e3b341; }
+.stat-val.red { color: #f85149; }
+
+/* Sections */
+.card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.card-title { font-size: 15px; font-weight: 700; color: var(--txt-bright); display: flex; align-items: center; gap: 8px; }
+
+/* Form */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.form-input, .form-select {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--txt-bright);
+  font-size: 13px;
+  outline: none;
+}
+.form-input:focus, .form-select:focus { border-color: var(--border-focus); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--green); color: #fff; border-color: rgba(240,246,252,.1); }
+.btn-primary:hover { background: var(--green-bright); }
+.btn-cyan { background: var(--cyan); color: #022a2d; font-weight: 700; }
+.btn-cyan:hover { filter: brightness(1.1); }
+.btn-default { background: var(--bg-card2); color: var(--txt); border-color: var(--border); }
+.btn-default:hover { border-color: var(--muted); color: var(--txt-bright); }
+.btn-danger { background: rgba(218,54,51,.15); color: #ff7b72; border-color: rgba(218,54,51,.4); }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-sm { padding: 4px 8px; font-size: 11.5px; border-radius: 4px; }
+
+/* Table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left; }
+th { background: var(--bg-card2); color: var(--muted); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+.key-text { font-family: var(--font-mono); font-weight: 700; color: #58a6ff; cursor: pointer; }
+.key-text:hover { text-decoration: underline; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.tag-green { background: rgba(63,185,80,.15); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+.tag-gray { background: rgba(139,148,158,.15); color: var(--muted); border: 1px solid rgba(139,148,158,.3); }
+.tag-yellow { background: rgba(227,179,65,.15); color: #e3b341; border: 1px solid rgba(227,179,65,.3); }
+.tag-red { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+
+/* Search toolbar */
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; justify-content: space-between; }
+.search-box { display: flex; gap: 8px; flex: 1; max-width: 400px; }
+
+/* Login overlay */
+#loginOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,17,23,.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.login-title { font-size: 18px; font-weight: 700; color: var(--txt-bright); margin-bottom: 6px; text-align: center; }
+.login-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; text-align: center; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(30px);
+  background: #1f6feb;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: all .2s;
+  z-index: 2000;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Modal for generated keys */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1500; padding: 16px;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; width: 100%; max-width: 520px; padding: 20px;
+}
+.modal-textarea {
+  width: 100%; height: 160px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px; color: var(--cyan); font-family: var(--font-mono);
+  font-size: 12px; resize: none; margin: 12px 0;
+}
+</style>
+</head>
+<body>
+
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">🔐 管理员登录</div>
+    <div class="login-desc">卡密授权管理与设备换绑后台</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>后台管理密码</label>
+      <input type="password" id="adminPwdInput" class="form-input" placeholder="输入密码 (默认 admin888)" />
+    </div>
+    <button class="btn btn-cyan" style="width:100%" id="loginSubmitBtn" onclick="doAdminLogin()">登录后台</button>
+  </div>
+</div>
+
+<div class="container" id="adminApp" style="display:none">
+  <header>
+    <div class="brand">
+      <h1>⚙️ 卡密与换绑管理系统</h1>
+      <span class="badge-admin">Admin v2.0</span>
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="/" target="_blank">🌐 首页</a>
+      <a class="nav-link" href="/picker" target="_blank">🗺️ 选点页</a>
+      <button class="nav-link danger" onclick="doAdminLogout()">退出</button>
+    </div>
+  </header>
+
+  <!-- 统计指标 -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">总生成卡密</div>
+      <div class="stat-val cyan" id="statTotal">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">已绑定设备</div>
+      <div class="stat-val green" id="statBound">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">未绑定 / 待使用</div>
+      <div class="stat-val yellow" id="statUnbound">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">已禁用卡密</div>
+      <div class="stat-val red" id="statDisabled">0</div>
+    </div>
+  </div>
+
+  <!-- 批量生成卡密 -->
+  <div class="card-box">
+    <div class="card-head">
+      <div class="card-title">✨ 批量生成卡密</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>生成数量</label>
+        <input type="number" id="genCount" class="form-input" value="5" min="1" max="100" />
+      </div>
+      <div class="form-group">
+        <label>卡密前缀</label>
+        <input type="text" id="genPrefix" class="form-input" value="VIP-" placeholder="如 VIP-" />
+      </div>
+      <div class="form-group">
+        <label>授权套餐类型</label>
+        <select id="genPlan" class="form-select">
+          <option value="VIP 永久授权">VIP 永久授权</option>
+          <option value="年度旗舰版">年度旗舰版</option>
+          <option value="月度尊享版">月度尊享版</option>
+          <option value="体验测试卡">体验测试卡</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>允许换绑次数</label>
+        <input type="number" id="genMaxUnbinds" class="form-input" value="5" min="0" max="99" />
+      </div>
+      <div class="form-group">
+        <label>备注 (客户信息/订单)</label>
+        <input type="text" id="genRemark" class="form-input" placeholder="如: 微信客户购买" />
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end">
+      <button class="btn btn-primary" onclick="submitGenerateCards()">🚀 立即生成卡密</button>
+    </div>
+  </div>
+
+  <!-- 卡密列表与设备换绑 -->
+  <div class="card-box">
+    <div class="card-head">
+      <div class="card-title">📋 卡密列表与设备换绑管理</div>
+      <button class="btn btn-default btn-sm" onclick="loadCardList()">🔄 刷新列表</button>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" id="searchInput" class="form-input" placeholder="搜索卡密、备注或套餐..." oninput="filterCards()" />
+        <select id="statusFilter" class="form-select" onchange="filterCards()">
+          <option value="all">全部状态</option>
+          <option value="bound">🔒 已绑定设备</option>
+          <option value="unbound">⚪ 未绑定</option>
+          <option value="disabled">🚫 已禁用</option>
+        </select>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">
+        共计 <span id="displayCount" style="color:var(--txt-bright);font-weight:700">0</span> 条记录
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>卡密 (点击复制)</th>
+            <th>套餐类型</th>
+            <th>状态</th>
+            <th>绑定设备标识 / 时间</th>
+            <th>已换绑次数</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="cardsTableBody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 换绑说明与提示 -->
+  <div class="card-box" style="font-size:13px;color:var(--muted);line-height:1.7">
+    <div class="card-title" style="margin-bottom:8px">💡 换绑与鉴权规则说明</div>
+    <ul style="padding-left:18px">
+      <li><b>设备绑定机制</b>：用户在首页或选点页激活卡密时，系统会自动记录当前客户端的独立设备标识并绑定。同一张卡密默认仅限绑定的设备访问。</li>
+      <li><b>用户自主换绑</b>：当用户更换手机或浏览器时，在卡密激活弹窗中点击「自主换绑」即可解绑旧设备并在新设备重新绑定（受最大换绑次数限制）。</li>
+      <li><b>管理员一键换绑</b>：管理员可在本后台点击任意卡密的「一键解绑/换绑」按钮，立即清空旧设备绑定信息，不受换绑次数限制。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 生成卡密展示弹窗 -->
+<div class="modal-overlay" id="genResultModal">
+  <div class="modal-box">
+    <div style="font-size:16px;font-weight:700;color:var(--txt-bright);margin-bottom:6px">🎉 卡密生成成功</div>
+    <div style="font-size:12px;color:var(--muted)">已生成以下卡密，你可以复制后发送给客户：</div>
+    <textarea class="modal-textarea" id="genResultText" readonly></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn btn-default" onclick="closeGenModal()">关闭</button>
+      <button class="btn btn-cyan" onclick="copyGenResult()">📋 一键复制全部卡密</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allCards = [];
+let adminToken = localStorage.getItem('ils_admin_token') || '';
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyText(str) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(str);
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = str;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? resolve() : reject();
+    } catch(e) { reject(e); }
+  });
+}
+
+async function doAdminLogin() {
+  const pwdInput = document.getElementById('adminPwdInput');
+  const pwd = (pwdInput ? pwdInput.value : '').trim();
+  if (!pwd) return toast('请输入后台管理密码');
+
+  const btn = document.getElementById('loginSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '验证中...';
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '密码错误');
+    }
+    adminToken = data.token;
+    localStorage.setItem('ils_admin_token', adminToken);
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'block';
+    toast('登录成功');
+    loadCardList();
+  } catch(err) {
+    toast(err.message || '登录失败');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登录后台';
+  }
+}
+
+function doAdminLogout() {
+  localStorage.removeItem('ils_admin_token');
+  adminToken = '';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('adminApp').style.display = 'none';
+  toast('已退出登录');
+}
+
+// 自动验证持久化登录状态
+if (adminToken) {
+  fetch('/api/admin/stats', {
+    headers: { 'Authorization': 'Bearer ' + adminToken }
+  }).then(r => r.json()).then(data => {
+    if (data && data.stats) {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'block';
+      loadCardList();
+    } else {
+      doAdminLogout();
+    }
+  }).catch(() => {
+    doAdminLogout();
+  });
+}
+
+async function loadCardList() {
+  try {
+    const res = await fetch('/api/admin/cards', {
+      headers: { 'Authorization': 'Bearer ' + adminToken }
+    });
+    if (res.status === 401) {
+      doAdminLogout();
+      return;
+    }
+    const data = await res.json();
+    allCards = data.cards || [];
+    renderStats(data.stats || {});
+    filterCards();
+  } catch(err) {
+    toast('获取卡密数据失败');
+  }
+}
+
+function renderStats(st) {
+  document.getElementById('statTotal').textContent = st.total || 0;
+  document.getElementById('statBound').textContent = st.bound || 0;
+  document.getElementById('statUnbound').textContent = st.unbound || 0;
+  document.getElementById('statDisabled').textContent = st.disabled || 0;
+}
+
+function filterCards() {
+  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const stFilter = document.getElementById('statusFilter').value;
+
+  const filtered = allCards.filter(c => {
+    if (q) {
+      const matchKey = (c.key || '').toLowerCase().includes(q);
+      const matchRemark = (c.remark || '').toLowerCase().includes(q);
+      const matchPlan = (c.plan || '').toLowerCase().includes(q);
+      if (!matchKey && !matchRemark && !matchPlan) return false;
+    }
+    if (stFilter === 'bound') return !!c.boundDeviceId;
+    if (stFilter === 'unbound') return !c.boundDeviceId && c.status === 'active';
+    if (stFilter === 'disabled') return c.status !== 'active';
+    return true;
+  });
+
+  document.getElementById('displayCount').textContent = filtered.length;
+  renderTable(filtered);
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('cardsTableBody');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">暂无匹配卡密</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(c => {
+    const isBound = !!c.boundDeviceId;
+    const boundInfo = isBound
+      ? \`<div style="font-weight:600;color:var(--txt-bright)">📱 \${esc(c.boundDeviceName || '设备已绑定')}</div>
+         <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">\${c.boundAt ? new Date(c.boundAt).toLocaleString('zh-CN') : ''}</div>\`
+      : '<span class="tag tag-gray">⚪ 未绑定</span>';
+
+    const statusTag = c.status === 'active'
+      ? '<span class="tag tag-green">正常</span>'
+      : '<span class="tag tag-red">已禁用</span>';
+
+    const unbindText = \`\${c.unbindCount || 0} / \${c.maxUnbinds ?? 5} 次\`;
+
+    return \`<tr>
+      <td><span class="key-text" onclick="clickCopy('\${c.key}')" title="点击复制卡密">\${esc(c.key)}</span></td>
+      <td>\${esc(c.plan || 'VIP 永久授权')}</td>
+      <td>\${statusTag}</td>
+      <td>\${boundInfo}</td>
+      <td>\${unbindText}</td>
+      <td style="color:var(--muted)">\${esc(c.remark || '-')}</td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:nowrap">
+          \${isBound ? \`<button class="btn btn-default btn-sm" onclick="adminUnbind('\${c.key}')" title="解绑当前设备，使其可在新设备绑定">🔄 解绑/换绑</button>\` : ''}
+          <button class="btn btn-default btn-sm" onclick="toggleCardStatus('\${c.key}', '\${c.status}')">
+            \${c.status === 'active' ? '🚫 禁用' : '✅ 启用'}
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCardPrompt('\${c.key}')">🗑️ 删除</button>
+        </div>
+      </td>
+    </tr>\`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function clickCopy(text) {
+  copyText(text).then(() => toast('已复制卡密: ' + text));
+}
+
+async function adminUnbind(key) {
+  if (!confirm(\`确认要解绑卡密 [\${key}] 的已绑定设备吗？解绑后用户可重新绑定新设备。\`)) return;
+  try {
+    const res = await fetch('/api/admin/unbind', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + adminToken
+      },
+      body: JSON.stringify({ key }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || '解绑失败');
+    toast('✓ 解绑成功');
+    loadCardList();
+  } catch(e) {
+    toast(e.message || '解绑操作失败');
+  }
+}
+
+async function toggleCardStatus(key, currentStatus) {
+  const nextStatus = currentStatus === 'active' ? 'disabled' : 'active';
+  try {
+    const res = await fetch('/api/admin/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + adminToken
+      },
+      body: JSON.stringify({ key, status: nextStatus }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '修改状态失败');
+    toast('状态已更新');
+    loadCardList();
+  } catch(e) {
+    toast(e.message || '更新失败');
+  }
+}
+
+async function deleteCardPrompt(key) {
+  if (!confirm(\`⚠️ 危险操作：确定要彻底删除卡密 [\${key}] 吗？删除后将无法恢复！\`)) return;
+  try {
+    const res = await fetch('/api/admin/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + adminToken
+      },
+      body: JSON.stringify({ key }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '删除失败');
+    toast('卡密已删除');
+    loadCardList();
+  } catch(e) {
+    toast(e.message || '删除失败');
+  }
+}
+
+async function submitGenerateCards() {
+  const count = parseInt(document.getElementById('genCount').value, 10) || 1;
+  const prefix = document.getElementById('genPrefix').value.trim();
+  const plan = document.getElementById('genPlan').value;
+  const maxUnbinds = parseInt(document.getElementById('genMaxUnbinds').value, 10) || 5;
+  const remark = document.getElementById('genRemark').value.trim();
+
+  try {
+    const res = await fetch('/api/admin/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + adminToken
+      },
+      body: JSON.stringify({ count, prefix, plan, maxUnbinds, remark }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || '生成卡密失败');
+
+    const keys = (data.created || []).map(c => c.key);
+    document.getElementById('genResultText').value = keys.join('\\n');
+    document.getElementById('genResultModal').classList.add('show');
+    loadCardList();
+  } catch(e) {
+    toast(e.message || '生成失败');
+  }
+}
+
+function closeGenModal() {
+  document.getElementById('genResultModal').classList.remove('show');
+}
+
+function copyGenResult() {
+  const txt = document.getElementById('genResultText').value;
+  copyText(txt).then(() => toast('已复制全部新生成的卡密！'));
+}
+
+document.getElementById('adminPwdInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doAdminLogin();
+});
+</script>
+</body>
+</html>`;
+}
+
 /* ==== inlined from src/parse.js ==== */
 
 // 坐标解析: 接受地图链接(苹果地图 / 高德 / 百度, 含短链), 抠出经纬度+名称。
@@ -502,7 +1487,6 @@ function getPageHtml() {
   --bg:#0a0c11; --card:#12161d; --card2:#191e28; --line:#242b38; --inset:rgba(255,255,255,.045);
   --cyan:#17c3cf; --cyan2:#0e97a1; --green:#22c55e; --red:#ff5b60; --orange:#f5a623;
   --txt:#eef2f8; --muted:#8a93a5; --mono:#7fe3ea;
-  /* legacy aliases kept so inline styles / JS class hooks keep working */
   --blue:#17c3cf; --gray:#8a93a5;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -518,26 +1502,6 @@ body {
 ::placeholder { color:#5d6675; }
 ::-webkit-scrollbar { width:6px; height:6px; }
 ::-webkit-scrollbar-thumb { background:#2b3342; border-radius:3px; }
-
-/* ---- top bar: sticky glass ---- */
-.topbar { position:sticky; top:0; z-index:1200; display:flex; align-items:center; gap:10px; padding:9px 12px; background:rgba(10,12,17,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); font-size:11px; color:var(--muted); }
-.topbar .back { flex:none; color:var(--cyan); font-weight:700; text-decoration:none; }
-.topbar .topcredit { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.topbar .topcredit a { color:#8fe0e6; text-decoration:none; font-weight:700; }
-.topbar .topcredit .ytname { font-size:13.5px; font-weight:800; color:#ff6b70; text-shadow:0 0 14px rgba(255,91,96,.4); }
-.topbar .topcredit .forkline { font-size:10.5px; color:#6b7484; }
-.topbar .topcredit .forkline .v11 { color:#22c55e; font-weight:700; }
-.topbar .tg { flex:none; color:#5cb8e8; font-weight:700; text-decoration:none; padding:3px 9px; border:1px solid rgba(42,171,238,.45); border-radius:20px; }
-.topbar .tg:active { background:rgba(42,171,238,.14); }
-
-/* ---- video tutorial CTA ---- */
-.vidbtn { display:flex; align-items:center; justify-content:center; gap:8px; margin:12px 12px 0; padding:15px; border-radius:13px; background:transparent; color:#ff6b70; border:1.5px solid rgba(255,91,96,.6); font-size:16px; font-weight:800; text-decoration:none; letter-spacing:.3px; transition:all .12s; }
-.vidbtn:active { background:rgba(255,91,96,.12); transform:scale(.98); }
-
-/* ---- anti-resale box: red bar + tint (matches landing) ---- */
-.redbox { margin:12px 12px 0; padding:14px 16px; background:linear-gradient(180deg,rgba(255,91,96,.16),rgba(255,91,96,.06)); border:1px solid rgba(255,91,96,.5); border-left:5px solid var(--red); border-radius:12px; }
-.redbox .rt { color:#ff6b70; font-size:17px; font-weight:800; line-height:1.4; letter-spacing:.3px; }
-.redbox .rb { color:#ffdcdc; font-size:13.5px; font-weight:700; line-height:1.7; margin-top:8px; }
 
 /* ---- map + its glass controls ---- */
 #map { height:50vh; width:100%; min-height:250px; background:#0a0c11; border-bottom:1px solid var(--line); }
@@ -561,7 +1525,7 @@ body {
 .crow .cv { flex:1; min-width:0; font-family:"SF Mono",ui-monospace,monospace; font-size:14px; color:var(--mono); word-break:break-all; }
 .copybtn { flex:none; }
 
-/* ---- buttons (positions unchanged, look upgraded) ---- */
+/* ---- buttons ---- */
 .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
 .btn { flex:1; min-width:100px; padding:12px 16px; border:none; border-radius:11px; font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; }
 .btn-primary { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; box-shadow:0 6px 18px rgba(23,195,207,.28); }
@@ -601,11 +1565,6 @@ body {
 .error-banner { background:linear-gradient(180deg,rgba(255,91,96,.18),rgba(255,91,96,.08)); border:1px solid rgba(255,91,96,.5); border-left:4px solid var(--red); color:#ffdcdc; padding:14px 16px; border-radius:12px; margin-bottom:12px; font-size:13.5px; line-height:1.6; display:none; }
 .error-banner b { display:block; margin-bottom:4px; color:#ff6b70; font-size:14.5px; }
 
-/* --- tiled diagonal watermark (continuous, self-restoring, never blocks the map) --- */
-.wm { position:fixed; inset:0; z-index:9998; pointer-events:none; overflow:hidden; user-select:none; -webkit-user-select:none; }
-.wm-i { position:absolute; inset:-60%; display:flex; flex-wrap:wrap; align-content:flex-start; transform:rotate(-24deg); opacity:.11; }
-.wm-i span { flex:none; padding:26px 30px; font-size:17.5px; font-weight:800; white-space:nowrap; color:#8fe0e6; letter-spacing:.4px; text-shadow:0 1px 3px rgba(0,0,0,.5); }
-
 .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(8,10,14,.92); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); color:#fff; padding:11px 20px; border-radius:22px; font-size:14px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9999; max-width:90vw; text-align:center; box-shadow:0 8px 28px rgba(0,0,0,.5); }
 .toast.show { opacity:1; }
 
@@ -623,8 +1582,12 @@ body {
 .fav-item .fav-del { flex:none; width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--red); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s; }
 .fav-item .fav-del:hover { background:rgba(255,91,96,.14); }
 .fav-empty { text-align:center; color:var(--muted); font-size:13px; padding:16px 0; }
-.fav-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.fav-header { display:flex; justify-between:space-between; align-items:center; margin-bottom:10px; }
 .fav-header h3 { margin-bottom:0; }
+
+/* ---- OEM Footer ---- */
+.oem-footer { margin-top:20px; padding:12px; text-align:center; font-size:11.5px; color:#6b7484; letter-spacing:.3px; border-top:1px dashed rgba(36,43,56,.6); display:flex; align-items:center; justify-content:center; gap:6px; }
+.oem-footer code { font-family:"SF Mono",ui-monospace,monospace; color:var(--cyan); background:rgba(23,195,207,.08); padding:2px 6px; border-radius:5px; border:1px solid rgba(23,195,207,.2); font-weight:600; font-size:11px; }
 
 /* ---- modal ---- */
 .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(4,6,10,.66); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); z-index:10000; display:none; align-items:center; justify-content:center; padding:20px; }
@@ -635,12 +1598,30 @@ body {
 .modal .modal-btns { display:flex; gap:8px; }
 .modal .modal-btns .btn { padding:12px; }
 
+/* ---- License Card ---- */
+.license-card { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; margin-bottom:12px; border-radius:14px; border:1px solid var(--line); background:var(--card); font-size:12.5px; transition:all .2s; }
+.license-card.unactive { border-color:rgba(255,91,96,.35); background:linear-gradient(135deg,rgba(255,91,96,.08),rgba(18,22,29,.9)); }
+.license-card.active { border-color:rgba(34,197,94,.35); background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(18,22,29,.9)); }
+.license-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.license-badge { font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; flex:none; }
+.license-badge.unactive { background:rgba(255,91,96,.2); color:var(--red); }
+.license-badge.active { background:rgba(34,197,94,.2); color:var(--green); }
+.license-text { color:var(--txt); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.license-btn-action { flex:none; padding:6px 12px; font-size:12px; font-weight:700; border-radius:8px; border:none; cursor:pointer; transition:transform .12s; }
+.license-btn-action:active { transform:scale(.95); }
+.license-btn-action.go { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; }
+.license-btn-action.subtle { background:var(--card2); border:1px solid var(--line); color:var(--muted); }
+
 /* ---- map overlay switches: dark glass pills ---- */
 .layer-switch { position:absolute; top:10px; right:10px; z-index:1000; display:flex; gap:4px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
 .layer-btn { border:none; background:transparent; padding:6px 10px; border-radius:7px; font-size:12px; font-weight:600; color:#a8b1c0; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .layer-btn.active { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-weight:700; }
 .layer-btn:active { transform:scale(.95); }
-.lang-switch { position:absolute; top:10px; left:10px; z-index:1000; display:flex; gap:2px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
+.lang-switch { position:absolute; top:10px; left:10px; z-index:1000; display:flex; align-items:center; gap:6px; }
+.back-btn { display:inline-flex; align-items:center; justify-content:center; gap:4px; text-decoration:none; background:rgba(10,12,17,.78); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:6px 11px; font-size:12px; font-weight:700; color:var(--txt); box-shadow:0 4px 18px rgba(0,0,0,.45); transition:all .15s; cursor:pointer; }
+.back-btn:hover { background:rgba(23,195,207,.15); border-color:var(--cyan); color:var(--cyan); }
+.back-btn:active { transform:scale(.95); }
+.lang-box { display:flex; gap:2px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
 .lang-btn { border:none; background:transparent; padding:6px 11px; border-radius:7px; font-size:12px; font-weight:700; color:#a8b1c0; cursor:pointer; transition:all .15s; }
 .lang-btn.active { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; }
 .lang-btn:active { transform:scale(.95); }
@@ -649,21 +1630,17 @@ body {
 </style>
 </head>
 <body>
-<div class="topbar">
-  <a class="back" href="/">← 主页</a>
-  <span class="topcredit">📺 <a class="ytname" href="https://www.youtube.com/@CyberHandyman/videos" target="_blank" rel="noopener">YouTube CyberHandyman 赛博工具人</a><span class="forkline"> · fork from 鸣谢贡献者: Yu9191 / mekos2772 / acheong08 <span class="v11">· 已同步 Yu9191 v1.1</span></span></span>
-  <a class="tg" href="https://t.me/cyberhandymancngroup" target="_blank" rel="noopener">✈️ TG群</a>
-</div>
-<div class="redbox">
-  <div class="rt">⚠️ 免费开源 · 禁止售卖</div>
-  <div class="rb"><b>如果你是通过付款来到本页面，请立即联系退款。</b>任何售卖本项目/模块的都是骗子，一经发现立即删库，血本无归！！！！<br>仅供学习研究，禁止违法用途，后果自负、与作者无关，与 Apple 无关。</div>
-</div>
-<a class="vidbtn" href="https://youtu.be/EspuRlKWUxc" target="_blank" rel="noopener" data-i18n="video_btn">▶️ 视频教程（YouTube）</a>
 <div style="position:relative">
 <div id="map"></div>
 <div class="lang-switch">
-  <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
-  <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  <a href="/" class="back-btn" id="backToHomeBtn" title="返回首页">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span data-i18n="back_home">返回</span>
+  </a>
+  <div class="lang-box">
+    <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  </div>
 </div>
 <div class="layer-switch">
   <button class="layer-btn active" data-layer="satellite" data-i18n="layer_satellite" onclick="switchLayer('satellite')">Satellite</button>
@@ -676,6 +1653,13 @@ body {
 </div>
 <div class="panel">
   <div class="error-banner" id="errorBanner" data-i18n-html="err_html"></div>
+  <div class="license-card unactive" id="licenseCard">
+    <div class="license-left">
+      <span id="licenseBadge" class="license-badge unactive">未激活</span>
+      <span class="license-text" id="licenseText">卡密未激活 · 选点功能受限</span>
+    </div>
+    <button type="button" class="license-btn-action go" id="licenseActionBtn" onclick="openLicenseModal()">激活卡密</button>
+  </div>
   <div class="card">
     <h3 data-i18n="choose_title">Choose target location</h3>
     <div class="coords" id="coords" data-i18n="coords_hint">Tap the map or use the tools below to pick a location</div>
@@ -736,8 +1720,8 @@ body {
     <div id="searchResults" class="search-results"></div>
   </div>
   <div class="status" id="status">Pick a location, then tap "Save to Device" to write it to your proxy tool</div>
+  <div class="oem-footer" id="oemFooter" data-i18n-html="oem_html">中国大陆技术微信支持 <code>LLME-love</code></div>
 </div>
-<div class="wm" id="wm" aria-hidden="true"><div class="wm-i" id="wmi"></div></div>
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="favModal">
   <div class="modal">
@@ -750,16 +1734,39 @@ body {
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="licenseModal">
+  <div class="modal" style="max-width:350px">
+    <h3 data-i18n="license_modal_title">🔐 授权卡密激活</h3>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;line-height:1.5;text-align:center" id="licenseModalHint" data-i18n="license_modal_desc">请输入专属卡密以激活系统与保存功能</div>
+    
+    <!-- 换绑提示 -->
+    <div id="modalMismatchBox" style="display:none;background:rgba(255,91,96,.1);border:1px solid rgba(255,91,96,.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px">
+      <div style="color:#ff7b72;font-weight:700;margin-bottom:4px">⚠️ 该卡密已绑定其他设备</div>
+      <div style="color:var(--muted);margin-bottom:8px" id="modalMismatchDesc">检测到该卡密已在其他设备使用。如需更换到本机，请点击换绑。</div>
+      <button type="button" class="btn btn-sm btn-primary" id="modalSelfUnbindBtn" style="width:100%" onclick="submitModalUnbind()">🔄 立即换绑到当前设备</button>
+    </div>
+
+    <input id="modalLicenseInput" placeholder="输入卡密 (如: VIP888)" autocomplete="off" spellcheck="false" style="font-family:'SF Mono',ui-monospace,monospace;text-transform:uppercase" />
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:14px;padding:0 2px">
+      <span style="color:var(--muted)">没有卡密？</span>
+      <button type="button" style="background:none;border:none;color:var(--cyan);font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline" onclick="copyContactWechat()" data-i18n="license_contact_wc">联系客服微信</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeLicenseModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" onclick="submitModalLicense()" id="modalLicenseSubmitBtn" data-i18n="license_activate_btn">立即激活</button>
+    </div>
+  </div>
+</div>
 <script>
 const SAVE_API = 'https://gs-loc.apple.com/ils-settings/save';
 const PARSE_API = '/api/parse';
 const ELEV_API = 'https://api.open-meteo.com/v1/elevation';
 const FAV_KEY = 'ils_favorites';
 const LANG_KEY = 'ils_lang';
-let lat = 0, lon = 0;          // no hard-coded home city: nothing is "default" until the user picks
-let didInitialCenter = false;  // auto-center once, only if the device already has coordinates
+let lat = 0, lon = 0;
+let didInitialCenter = false;
 let selected = false;
-let elev = null, elevState = 'idle'; // idle | loading | ok | fail
+let elev = null, elevState = 'idle';
 let elevSeq = 0, elevTimer = null;
 const elevCache = new Map();
 let activeLon = null, activeLat = null, activeAcc = null, activeAlt = null, activeStatus = 'querying';
@@ -769,6 +1776,7 @@ let savedLon = null, savedLat = null, savedTimeStr = '';
 const I18N = {
   zh: {
     title: 'iOS 虚拟定位',
+    back_home: '返回',
     layer_satellite: '卫星', layer_amap: '高德', layer_color: '彩色', layer_standard: '标准', layer_dark: '暗色',
     err_html: '<b>模块未生效</b>请检查以下配置：<br>1. 已安装并启用 iOS Location Spoofer 模块<br>2. MITM 已开启且信任证书<br>3. MITM 主机名包含 gs-loc.apple.com<br>4. 当前网络已走代理',
     choose_title: '选择目标位置',
@@ -781,8 +1789,7 @@ const I18N = {
     acc_note_html: '<b>精度参数怎么填</b>' +
       '<code>horizontalAccuracy</code> 水平精度（米），默认 <em>39</em>，越小越「精准」—— 想更像 GPS 可设 <em>5~15</em>；保持 <em>39</em> 也正常。<br>' +
       '<code>verticalAccuracy</code> 垂直精度（米），默认 <em>1000</em> —— 本页已自动填入目标点真实海拔，可调小到 <em>10~30</em>，让海拔显得更可信。<br>' +
-      '<code>扰动半径</code>（米），默认 <em>0</em>（关闭）—— 设为 <em>N</em> 后，每次定位在目标点周围 <em>N</em> 米内随机偏移，避免每次结果一模一样。想固定在精确坐标就留 <em>0</em>。' +
-      '<span class="src">参数建议来自上游项目 mekos2772 / ios-location-spoofer</span>',
+      '<code>扰动半径</code>（米），默认 <em>0</em>（关闭）—— 设为 <em>N</em> 后，每次定位在目标点周围 <em>N</em> 米内随机偏移，避免每次结果一模一样。想固定在精确坐标就留 <em>0</em>。',
     fav_title: '收藏的位置', clear_all: '清空全部',
     active_title: '当前生效坐标', active_label: '设备本地坐标 (latitude/longitude/altitude)',
     refresh: '刷新', clear_data: '清除数据',
@@ -790,6 +1797,7 @@ const I18N = {
     paste_hint: '支持 Apple Maps · Google Maps · 高德 · 百度 · 坐标文本（自动换算为 WGS-84）',
     search_title: '搜索地点', search_ph: '搜地名，回车列出候选（只预览，不改定位）', search: '搜索',
     status_hint: '选好位置后点击「储存到设备」写入代理工具',
+    oem_html: '中国大陆技术微信支持 <code>LLME-love</code>',
     modal_title: '收藏此位置', modal_ph: '输入备注名称（如: 公司、家）', cancel: '取消', save_short: '保存',
     acc: '精度', restore: '恢复真实定位', restored: '✓ 虚拟定位已清除，定位服务开关关闭后，关掉代理开关，等待至少 10 秒钟，再次开启生效', hacc: '水平精度', vacc: '垂直精度', jitter: '扰动半径(米)',
     querying: '查询中...', no_saved: '无已保存的坐标', query_failed: '查询失败 (需要代理模块支持)', cleared: '已清除',
@@ -807,7 +1815,6 @@ const I18N = {
     saving: '储存中...', saved: '✓ 已储存',
     written: function(lo, la, ts){ return '✓ 已写入: ' + lo.toFixed(6) + ', ' + la.toFixed(6) + ' · ' + ts; },
     saved_toast: '✓ 坐标已成功写入模块，定位服务关闭开关，等待至少 10 秒钟，再次开启生效',
-    video_btn: '▶️ 视频教程（YouTube）',
     save_failed: '✗ 储存失败 - 请检查模块配置', write_failed: '写入失败',
     no_geo: '浏览器不支持定位', getting_loc: '获取位置中...', got_loc: '已获取当前位置',
     loc_failed: function(m){ return '定位失败: ' + m; },
@@ -816,10 +1823,25 @@ const I18N = {
     enter_place: '请输入地名', searching: '搜索中...',
     not_found: function(q){ return '未找到: ' + q; }, search_failed: '搜索失败',
     copied: function(x){ return '已复制: ' + x; }, copy_failed: '复制失败，请手动选择',
-    alt_unknown_copy: '海拔尚未获取，仅复制经纬度'
+    alt_unknown_copy: '海拔尚未获取，仅复制经纬度',
+    license_unactive_badge: '未激活',
+    license_active_badge: '已激活',
+    license_unactive_msg: '卡密未激活 · 选点功能受限',
+    license_active_msg: function(k, p){ return '已激活授权 · ' + (p || 'VIP') + ' (' + k + ')'; },
+    license_btn_activate: '激活卡密',
+    license_btn_change: '更换卡密',
+    license_modal_title: '🔐 授权卡密激活',
+    license_modal_desc: '请输入专属卡密以激活系统与保存功能',
+    license_activate_btn: '立即激活',
+    license_contact_wc: '联系客服微信',
+    license_wc_copied: '已复制客服微信号: LLME-love，请联系获取卡密',
+    license_active_success: '✓ 卡密激活成功！已解锁全部功能',
+    license_required: '请先输入卡密激活授权',
+    license_invalid: '卡密无效或已失效，请联系客服获取有效卡密'
   },
   en: {
     title: 'iOS Location Spoofer',
+    back_home: 'Back',
     layer_satellite: 'Satellite', layer_amap: 'Amap', layer_color: 'Color', layer_standard: 'Standard', layer_dark: 'Dark',
     err_html: '<b>Module not active</b>Please check the following:<br>1. The iOS Location Spoofer module is installed and enabled<br>2. MITM is on and the certificate is trusted<br>3. The MITM hostname list includes gs-loc.apple.com<br>4. The current network is routed through the proxy',
     choose_title: 'Choose target location',
@@ -832,8 +1854,7 @@ const I18N = {
     acc_note_html: '<b>Choosing the accuracy values</b>' +
       '<code>horizontalAccuracy</code> in metres, default <em>39</em> — the smaller, the more "precise" it looks. Set <em>5–15</em> to look more like GPS; <em>39</em> is perfectly fine too.<br>' +
       '<code>verticalAccuracy</code> in metres, default <em>1000</em> — this page already fills in the target\\'s real altitude, so lowering it to <em>10–30</em> makes that altitude look more credible.<br>' +
-      '<code>Jitter radius</code> in metres, default <em>0</em> (off) — set to <em>N</em> and each positioning is randomly offset within <em>N</em> m of the target, so results are never identical. Leave <em>0</em> to stay pinned to the exact point.' +
-      '<span class="src">Guidance from the upstream project mekos2772 / ios-location-spoofer</span>',
+      '<code>Jitter radius</code> in metres, default <em>0</em> (off) — set to <em>N</em> and each positioning is randomly offset within <em>N</em> m of the target, so results are never identical. Leave <em>0</em> to stay pinned to the exact point.',
     fav_title: 'Favorites', clear_all: 'Clear All',
     active_title: 'Active coordinates', active_label: 'On-device coordinates (latitude/longitude/altitude)',
     refresh: 'Refresh', clear_data: 'Clear Data',
@@ -841,6 +1862,7 @@ const I18N = {
     paste_hint: 'Supports Apple Maps · Google Maps · Amap · Baidu · coordinate text (auto-converted to WGS-84)',
     search_title: 'Search place', search_ph: 'Search a place, Enter to list candidates (preview only)', search: 'Search',
     status_hint: 'Pick a location, then tap "Save to Device" to write it to your proxy tool',
+    oem_html: 'Mainland China Tech Support (WeChat): <code>LLME-love</code>',
     modal_title: 'Add this location to favorites', modal_ph: 'Enter a label (e.g. Office, Home)', cancel: 'Cancel', save_short: 'Save',
     acc: 'Accuracy', restore: 'Restore real location', restored: '✓ Spoofed location cleared. Turn Location Services OFF, switch your proxy off, wait at least 10 seconds, then turn it back ON to take effect.', hacc: 'H. accuracy', vacc: 'V. accuracy', jitter: 'Jitter radius(m)',
     querying: 'Querying...', no_saved: 'No saved coordinates', query_failed: 'Query failed (requires the proxy module)', cleared: 'Cleared',
@@ -858,7 +1880,6 @@ const I18N = {
     saving: 'Saving...', saved: '✓ Saved',
     written: function(lo, la, ts){ return '✓ Written: ' + lo.toFixed(6) + ', ' + la.toFixed(6) + ' · ' + ts; },
     saved_toast: '✓ Coordinates written to the module. Turn Location Services OFF, wait at least 10 seconds, then turn it back ON to take effect.',
-    video_btn: '▶️ Video tutorial (YouTube)',
     save_failed: '✗ Save failed - please check the module configuration', write_failed: 'Write failed',
     no_geo: 'Browser does not support geolocation', getting_loc: 'Getting location...', got_loc: 'Current location acquired',
     loc_failed: function(m){ return 'Location failed: ' + m; },
@@ -867,7 +1888,21 @@ const I18N = {
     enter_place: 'Please enter a place name', searching: 'Searching...',
     not_found: function(q){ return 'Not found: ' + q; }, search_failed: 'Search failed',
     copied: function(x){ return 'Copied: ' + x; }, copy_failed: 'Copy failed, please select manually',
-    alt_unknown_copy: 'Altitude not ready, copied lat/lon only'
+    alt_unknown_copy: 'Altitude not ready, copied lat/lon only',
+    license_unactive_badge: 'Inactive',
+    license_active_badge: 'Active',
+    license_unactive_msg: 'License inactive · Features restricted',
+    license_active_msg: function(k, p){ return 'Licensed · ' + (p || 'VIP') + ' (' + k + ')'; },
+    license_btn_activate: 'Activate Key',
+    license_btn_change: 'Change Key',
+    license_modal_title: '🔐 License Activation',
+    license_modal_desc: 'Enter your card key to unlock location spoofing & device sync',
+    license_activate_btn: 'Activate Now',
+    license_contact_wc: 'Contact WeChat',
+    license_wc_copied: 'Copied WeChat: LLME-love, contact for license key',
+    license_active_success: '✓ License activated successfully!',
+    license_required: 'Please enter a valid card key to activate',
+    license_invalid: 'Invalid card key, please check and retry'
   }
 };
 
@@ -876,7 +1911,7 @@ function detectLang() {
     const saved = localStorage.getItem(LANG_KEY);
     if (saved === 'zh' || saved === 'en') return saved;
   } catch(e) {}
-  return 'zh'; // default to Chinese; tap EN to switch (remembered per browser)
+  return 'zh';
 }
 let lang = detectLang();
 
@@ -897,6 +1932,7 @@ function applyI18n() {
   updateStatus();
   renderActive();
   renderFavs();
+  renderLicenseBar();
 }
 
 function setLang(l) {
@@ -905,7 +1941,218 @@ function setLang(l) {
   applyI18n();
 }
 
-const map = L.map('map').setView([20, 0], 2);  // neutral world view — implies no default location
+/* ---- 卡密系统逻辑 ---- */
+const LICENSE_KEY = 'ils_license';
+
+function getLicenseData() {
+  try {
+    const raw = localStorage.getItem(LICENSE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (obj && obj.valid && obj.key) return obj;
+  } catch(e) {}
+  return null;
+}
+
+function isLicenseActive() {
+  return !!getLicenseData();
+}
+
+function renderLicenseBar() {
+  const lic = getLicenseData();
+  const card = document.getElementById('licenseCard');
+  const badge = document.getElementById('licenseBadge');
+  const text = document.getElementById('licenseText');
+  const btn = document.getElementById('licenseActionBtn');
+  if (!card) return;
+
+  if (lic) {
+    card.className = 'license-card active';
+    if (badge) {
+      badge.className = 'license-badge active';
+      badge.textContent = t('license_active_badge');
+    }
+    if (text) {
+      text.textContent = t('license_active_msg', lic.key, lic.plan);
+    }
+    if (btn) {
+      btn.className = 'license-btn-action subtle';
+      btn.textContent = t('license_btn_change');
+      btn.onclick = function() {
+        try { localStorage.removeItem(LICENSE_KEY); } catch(e) {}
+        renderLicenseBar();
+        openLicenseModal();
+      };
+    }
+  } else {
+    card.className = 'license-card unactive';
+    if (badge) {
+      badge.className = 'license-badge unactive';
+      badge.textContent = t('license_unactive_badge');
+    }
+    if (text) {
+      text.textContent = t('license_unactive_msg');
+    }
+    if (btn) {
+      btn.className = 'license-btn-action go';
+      btn.textContent = t('license_btn_activate');
+      btn.onclick = function() { openLicenseModal(); };
+    }
+  }
+}
+
+function openLicenseModal(notice) {
+  const modal = document.getElementById('licenseModal');
+  const hint = document.getElementById('licenseModalHint');
+  const input = document.getElementById('modalLicenseInput');
+  if (hint && notice) hint.textContent = notice;
+  else if (hint) hint.textContent = t('license_modal_desc');
+  if (input) input.value = '';
+  if (modal) modal.classList.add('show');
+  if (input) setTimeout(function() { input.focus(); }, 150);
+}
+
+function closeLicenseModal() {
+  const modal = document.getElementById('licenseModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem('ils_device_id');
+  if (!id) {
+    id = 'DEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    localStorage.setItem('ils_device_id', id);
+  }
+  return id;
+}
+
+function getDeviceName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/i.test(ua)) return 'iPhone / Safari';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) return 'Android';
+  if (/Mac/i.test(ua)) return 'Mac / Browser';
+  if (/Windows/i.test(ua)) return 'Windows / Browser';
+  return 'Web Client';
+}
+
+async function verifyAndBindKey(keyVal, silent) {
+  if (!keyVal) return false;
+  const mismatchBox = document.getElementById('modalMismatchBox');
+  const mismatchDesc = document.getElementById('modalMismatchDesc');
+  if (mismatchBox) mismatchBox.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/verify-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: keyVal,
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      const err = new Error(data.error || t('license_invalid'));
+      err.data = data;
+      throw err;
+    }
+    localStorage.setItem(LICENSE_KEY, JSON.stringify(data));
+    renderLicenseBar();
+    closeLicenseModal();
+    if (!silent) toast(t('license_active_success'));
+    return true;
+  } catch(err) {
+    const d = err.data;
+    if (d && d.code === 'DEVICE_MISMATCH') {
+      openLicenseModal();
+      const mInput = document.getElementById('modalLicenseInput');
+      if (mInput) mInput.value = keyVal;
+      if (mismatchBox) {
+        mismatchBox.style.display = 'block';
+        if (mismatchDesc) {
+          mismatchDesc.textContent = '该卡密已在设备 [' + (d.boundDeviceName || '其他设备') + '] 绑定。已换绑 ' + (d.unbindCount || 0) + ' / ' + (d.maxUnbinds ?? 5) + ' 次。如需更换到本机，请点击下方换绑。';
+        }
+      }
+      toast('卡密已绑定其他设备，请点击换绑');
+    } else {
+      if (!silent) toast(err.message || t('license_invalid'));
+    }
+    return false;
+  }
+}
+
+async function submitModalUnbind() {
+  const input = document.getElementById('modalLicenseInput');
+  const btn = document.getElementById('modalSelfUnbindBtn');
+  const val = (input ? input.value : '').trim().toUpperCase();
+  if (!val) {
+    toast(t('license_required'));
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '换绑处理中…';
+  }
+  try {
+    const res = await fetch('/api/unbind-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: val }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '换绑失败');
+    }
+    toast('✓ 换绑成功！正在为您自动绑定当前设备...');
+    const mismatchBox = document.getElementById('modalMismatchBox');
+    if (mismatchBox) mismatchBox.style.display = 'none';
+    setTimeout(() => {
+      verifyAndBindKey(val, false);
+    }, 500);
+  } catch(err) {
+    toast(err.message || '换绑操作失败');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 立即换绑到当前设备';
+    }
+  }
+}
+
+async function submitModalLicense() {
+  const input = document.getElementById('modalLicenseInput');
+  const btn = document.getElementById('modalLicenseSubmitBtn');
+  const val = (input ? input.value : '').trim().toUpperCase();
+  if (!val) {
+    toast(t('license_required'));
+    if (input) input.focus();
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  try {
+    await verifyAndBindKey(val, false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = t('license_activate_btn');
+    }
+  }
+}
+
+function copyContactWechat() {
+  copyText('LLME-love').then(function() {
+    toast(t('license_wc_copied'));
+  }).catch(function() {
+    prompt('请复制客服微信号：', 'LLME-love');
+  });
+}
+
+const map = L.map('map').setView([20, 0], 2);
 const tiles = {
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS'}),
   wgs84: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'ArcGIS WGS84'}),
@@ -929,7 +2176,6 @@ function showMarker() { if (!markerShown) { marker.addTo(map); markerShown = tru
 marker.on('dragend', e => { const p=e.target.getLatLng(); setPos(p.lat, p.lng); });
 map.on('click', e => { setPos(e.latlng.lat, e.latlng.lng); });
 
-/* Altitude is an editable field (auto-filled from Open-Meteo, user can override). */
 function currentAlt() {
   const el = document.getElementById('altInput');
   if (!el) return null;
@@ -938,7 +2184,6 @@ function currentAlt() {
 }
 function haccVal() { const n = parseInt((document.getElementById('haccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 39; }
 function vaccVal() { const n = parseInt((document.getElementById('vaccInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 1000; }
-// randomRadius (Yu9191 v1.1 "扰动半径"): metres of random jitter per positioning. 0 = off.
 function jitterVal() { const n = parseInt((document.getElementById('jitterInput')||{}).value, 10); return isFinite(n) && n > 0 ? n : 0; }
 function setAltInput(v) {
   const el = document.getElementById('altInput');
@@ -982,7 +2227,6 @@ function moveTo(newLat, newLon, zoom, knownAlt) {
   map.setView([lat, lon], zoom || 15);
 }
 
-/* ---- Elevation (Open-Meteo): debounced + cached, WGS-84 native ---- */
 function elevKey(la, lo) { return la.toFixed(4) + ',' + lo.toFixed(4); }
 function fetchElevation(la, lo) {
   const key = elevKey(la, lo);
@@ -1015,7 +2259,6 @@ function showError(show) {
   document.getElementById('errorBanner').style.display = show ? 'block' : 'none';
 }
 
-/* ---- Clipboard ---- */
 function copyText(str) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     return navigator.clipboard.writeText(str);
@@ -1053,6 +2296,7 @@ function moduleParamString() {
 }
 
 function copyParams(btn) {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   if (!selected) { toast(t('pick_first')); return; }
   const s = moduleParamString();
   copyText(s).then(() => {
@@ -1062,7 +2306,6 @@ function copyParams(btn) {
   }).catch(() => toast(t('copy_failed'), 3000));
 }
 
-/* ---- Favorites (localStorage) ---- */
 function getFavs() {
   try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
 }
@@ -1147,7 +2390,6 @@ function clearAllFav() {
   toast(t('all_cleared'));
 }
 
-/* ---- Active location query ---- */
 function renderActive() {
   const el = document.getElementById('activeValue');
   if (activeStatus === 'ok') {
@@ -1176,7 +2418,6 @@ function queryActive() {
         activeLat = parseFloat(d.latitude);
         activeAcc = (d.horizontalAccuracy != null ? d.horizontalAccuracy : (d.accuracy || null));
         activeAlt = (d.altitude !== undefined && d.altitude !== null) ? d.altitude : null;
-        // Reflect the device's stored jitter radius back into the input (Yu9191 v1.1).
         if (d.randomRadius != null) { const ji = document.getElementById('jitterInput'); if (ji) ji.value = d.randomRadius; }
         activeStatus = 'ok';
         if (!didInitialCenter && !selected) {
@@ -1209,14 +2450,16 @@ function clearActive() {
     .catch(() => { toast(t('clear_failed_cfg'), 3000); });
 }
 
-/* ---- Save to device ---- */
 async function save() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   if (!selected) { toast(t('pick_first')); return; }
   const btn = document.getElementById('saveBtn');
   btn.textContent = t('saving'); btn.disabled = true;
   showError(false);
   try {
+    const lic = getLicenseData();
     let url = SAVE_API + '?lon=' + lon + '&lat=' + lat;
+    if (lic && lic.key) url += '&key=' + encodeURIComponent(lic.key);
     const a = currentAlt(); if (a !== null) url += '&alt=' + a;
     url += '&hacc=' + haccVal() + '&vacc=' + vaccVal() + '&randomRadius=' + jitterVal();
     const r = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
@@ -1252,7 +2495,6 @@ function locateMe() {
   );
 }
 
-/* Local fallback for plain "lat, lon" text when the parse API is unreachable. */
 function parseLocalCoords(text) {
   const m = text.match(/(-?[0-9]+\\.[0-9]+)[,\\s]+(-?[0-9]+\\.[0-9]+)/);
   if (!m) return null;
@@ -1263,6 +2505,7 @@ function parseLocalCoords(text) {
 }
 
 async function parseUrl() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   const input = document.getElementById('urlInput').value.trim();
   if (!input) return toast(t('paste_first'));
   toast(t('parsing'));
@@ -1284,6 +2527,7 @@ async function parseUrl() {
 
 let searchResults = [];
 async function searchPlace() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   const q = document.getElementById('searchInput').value.trim();
   if (!q) return toast(t('enter_place'));
   const box = document.getElementById('searchResults');
@@ -1308,6 +2552,7 @@ function selectSearchResult(i) {
   toast((p.display_name || '').slice(0, 40));
 }
 function restoreReal() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -1331,33 +2576,24 @@ document.addEventListener('paste', e => {
 document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') searchPlace(); });
 document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') parseUrl(); });
 document.getElementById('favNameInput').addEventListener('keydown', e => { if(e.key==='Enter') confirmFav(); });
-
-/* ---- Watermark: tiled, non-interactive, rebuilt if tampered with ---- */
-const WM_TEXT = 'YouTube：赛博工具人 @CyberHandyman 根据GitHub开源项目制作';
-function buildWM() {
-  let host = document.getElementById('wm');
-  if (!host) { host = document.createElement('div'); host.id = 'wm'; host.className = 'wm'; host.setAttribute('aria-hidden','true'); document.body.appendChild(host); }
-  host.className = 'wm'; host.removeAttribute('style');
-  const n = Math.ceil((window.innerWidth * window.innerHeight) / 12000) + 40;
-  let s = '';
-  for (let i = 0; i < n; i++) s += '<span>' + WM_TEXT + '<\\/span>';
-  host.innerHTML = '<div class="wm-i" id="wmi">' + s + '<\\/div>';
-}
-function ensureWM() {
-  const host = document.getElementById('wm'), inner = document.getElementById('wmi');
-  if (!host || !inner || inner.textContent.indexOf('CyberHandyman') < 0) { buildWM(); return; }
-  const ch = getComputedStyle(host), ci = getComputedStyle(inner);
-  if (ch.display === 'none' || ch.visibility === 'hidden' || ch.position !== 'fixed' || parseFloat(ci.opacity) < 0.03) {
-    host.removeAttribute('style'); inner.removeAttribute('style'); buildWM();
-  }
-}
-buildWM();
-try { new MutationObserver(ensureWM).observe(document.body, { childList: true }); } catch(e) {}
-setInterval(ensureWM, 1500);
-window.addEventListener('resize', buildWM);
+const mli = document.getElementById('modalLicenseInput'); if(mli) mli.addEventListener('keydown', e => { if(e.key==='Enter') submitModalLicense(); });
 
 applyI18n();
 queryActive();
+renderLicenseBar();
+
+// URL 卡密自动校验激活与选点网页卡密鉴权守护
+(function checkPageAuth() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryKey = (urlParams.get('key') || '').trim().toUpperCase();
+  if (queryKey) {
+    verifyAndBindKey(queryKey, false);
+  } else if (!isLicenseActive()) {
+    setTimeout(() => {
+      openLicenseModal('⚠️ 请先输入卡密激活授权后使用选点系统');
+    }, 350);
+  }
+})();
 <\/script>
 </body>
 </html>`;
@@ -1371,7 +2607,7 @@ function getLandingHtml() {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>iOS Location Spoofer · 虚拟定位</title>
+<title>iPhone 虚拟定位</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0c11">
 <link rel="apple-touch-icon" href="/icon-180.png">
@@ -1384,7 +2620,7 @@ function getLandingHtml() {
 }
 *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body{
-  font-family:-apple-system,system-ui,"SF Pro","Helvetica Neue",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,"SF Pro","Helvetica Neue",sans-serif;
   color:var(--txt); line-height:1.5;
   background:
     radial-gradient(1100px 420px at 50% -140px, rgba(23,195,207,.16), transparent 70%),
@@ -1392,49 +2628,112 @@ body{
     var(--bg);
   background-attachment:fixed;
 }
-.wrap{ max-width:600px; margin:0 auto; padding:20px 16px calc(44px + env(safe-area-inset-bottom)); }
-
-/* --- top warning: red accent bar + tint --- */
-.warn{ position:relative; background:linear-gradient(180deg,rgba(255,91,96,.16),rgba(255,91,96,.06)); border:1px solid rgba(255,91,96,.5); border-left:5px solid var(--red); border-radius:12px; padding:15px 18px; margin-bottom:12px; }
-.warn .t{ color:#ff6b70; font-size:20px; font-weight:800; letter-spacing:.4px; line-height:1.4; }
-.warn .b{ color:#ffdcdc; font-size:15.5px; font-weight:700; line-height:1.7; margin-top:9px; }
-
-/* --- disclaimer --- */
-.disc{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 16px; margin-bottom:18px; }
-.disc-t{ font-size:13px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--cyan); margin-bottom:9px; }
-.disc-list{ margin:0; padding-left:17px; }
-.disc-list li{ font-size:12px; color:var(--muted); line-height:1.75; margin-bottom:6px; }
-.disc-list li b{ color:#c3ccdb; }
+.wrap{ 
+  max-width:600px; 
+  margin:0 auto; 
+  padding:20px 16px calc(44px + constant(safe-area-inset-bottom));
+  padding:20px 16px calc(44px + env(safe-area-inset-bottom)); 
+}
 
 /* --- header / branding --- */
-header{ text-align:center; padding:8px 0 6px; }
+header{ text-align:center; padding:12px 0 8px; }
 header .logowrap{ position:relative; width:74px; margin:0 auto 14px; }
 header .logo{ width:74px; height:74px; border-radius:20px; display:block; box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(23,195,207,.28); }
-h1{ font-size:23px; font-weight:800; letter-spacing:.3px; background:linear-gradient(92deg,#eafcff,#7fe3ea 55%,#22c55e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.ytline{ margin-top:13px; font-size:17.5px; font-weight:800; letter-spacing:.3px; line-height:1.5; }
-.ytline .yt{ color:#ff6b70; text-decoration:none; text-shadow:0 0 18px rgba(255,91,96,.45); }
-.credit{ font-size:12px; color:var(--muted); margin-top:9px; line-height:1.7; }
-.credit a{ color:#8fe0e6; text-decoration:none; }
-.synced{ font-size:12px; color:#22c55e; font-weight:700; margin-top:8px; }
-.synced a{ color:#22c55e; text-decoration:underline; }
+h1{ font-size:26px; font-weight:800; letter-spacing:1px; background:linear-gradient(92deg,#eafcff,#7fe3ea 55%,#22c55e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
-/* --- primary CTAs (green picker + video) --- */
-.ctas{ display:flex; gap:10px; margin:18px 0 4px; }
+/* --- primary CTAs --- */
+.ctas{ display:flex; gap:10px; margin:18px 0 12px; }
 .enter{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:17px 14px; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; text-decoration:none; transition:transform .12s,box-shadow .12s; }
 .enter:active{ transform:scale(.97); }
 .enter.go{ background:linear-gradient(135deg,#2ee06a,#129a44); color:#04240f; box-shadow:0 10px 26px rgba(34,197,94,.34); }
-.enter.video{ background:transparent; color:#ff6b70; border:1.5px solid rgba(255,91,96,.6); flex:0 0 44%; }
-.enter.video:active{ background:rgba(255,91,96,.1); }
-.enter.tg{ width:100%; margin:10px 0 4px; background:transparent; color:#5cb8e8; border:1.5px solid rgba(42,171,238,.55); }
-.enter.tg:active{ background:rgba(42,171,238,.12); }
+
+/* --- card key license card --- */
+.license-card{
+  background: linear-gradient(135deg, rgba(25,30,40,0.85), rgba(18,22,29,0.98));
+  border: 1px solid rgba(23,195,207,0.28);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  backdrop-filter: blur(8px);
+}
+.license-card.active{ border-color:rgba(34,197,94,0.35); }
+.license-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.license-title-wrap{ display:flex; align-items:center; gap:8px; }
+.license-icon{ font-size:16px; }
+.license-title{ font-size:14px; font-weight:800; color:var(--txt); letter-spacing:.4px; }
+.badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:12px; text-transform:uppercase; letter-spacing:.5px; }
+.badge.unactive{ background:rgba(255,91,96,.15); color:var(--red); border:1px solid rgba(255,91,96,.35); }
+.badge.active{ background:rgba(34,197,94,.18); color:var(--green); border:1px solid rgba(34,197,94,.4); }
+.license-desc{ font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+.license-input-row{ display:flex; gap:8px; margin-bottom:8px; }
+.license-input{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:"SF Mono",ui-monospace,monospace; font-size:13px; color:var(--txt); outline:none; transition:border-color .15s; text-transform:uppercase; }
+.license-input:focus{ border-color:var(--cyan); box-shadow:0 0 0 2px rgba(23,195,207,.2); }
+.license-btn{ padding:0 18px; border:none; border-radius:10px; background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-size:13.5px; font-weight:700; cursor:pointer; transition:transform .12s,filter .12s; white-space:nowrap; }
+.license-btn:active{ transform:scale(.96); filter:brightness(1.1); }
+.license-hint{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--muted); }
+.license-link-btn{ background:none; border:none; color:var(--cyan); font-size:11.5px; font-weight:600; cursor:pointer; text-decoration:underline; padding:0; }
+.license-link-btn:hover{ color:#6feaf2; }
+.license-info-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; font-size:13px; }
+.license-info-label{ color:var(--muted); }
+.license-info-key{ font-family:"SF Mono",ui-monospace,monospace; font-weight:700; color:var(--mono); }
+.license-plan-tag{ font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); font-weight:600; }
+.license-action-row{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; }
+.license-status-tip{ color:var(--green); font-weight:600; }
+.license-reset-btn{ background:transparent; border:1px solid var(--line); border-radius:6px; padding:3px 8px; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; }
+.license-reset-btn:hover{ color:var(--txt); border-color:var(--muted); }
+
+/* --- contact card --- */
+.wechat-box{
+  background: linear-gradient(135deg, rgba(25,30,40,0.8), rgba(18,22,29,0.95));
+  border: 1px solid rgba(23,195,207,0.2);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  backdrop-filter: blur(8px);
+  margin-bottom: 4px;
+}
+.wechat-info{ display:flex; align-items:center; gap:10px; }
+.wechat-icon{ font-size:18px; }
+.wechat-text{ display:flex; flex-direction:column; }
+.wechat-label{ font-size:12px; color:var(--muted); font-weight:500; }
+.wechat-id{ font-family:"SF Mono",ui-monospace,monospace; font-size:14px; color:var(--mono); font-weight:700; letter-spacing:.5px; }
+.wechat-copy{
+  padding: 6px 14px;
+  background: rgba(23,195,207,0.12);
+  border: 1px solid rgba(23,195,207,0.3);
+  border-radius: 8px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.wechat-copy:active{ transform:scale(.95); background:rgba(23,195,207,0.25); }
+.wechat-copy.ok{ background:var(--green); border-color:var(--green); color:#04240f; }
 
 .divider{ height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:24px 0 20px; }
 
-/* --- section heads with accent bar --- */
+/* --- section heads --- */
 h2{ font-size:16px; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:9px; }
 h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:linear-gradient(180deg,var(--cyan),var(--green)); }
 .sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px 13px; }
-.note{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--cyan); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#c3ccdb; margin-bottom:16px; }
+
+/* 优化后的提示框样式 */
+.note{ 
+  background:var(--card); 
+  border:1px solid var(--line); 
+  border-radius:14px; 
+  padding:14px 16px; 
+  font-size:12.5px; 
+  color:#c3ccdb; 
+  line-height:1.6;
+  margin-bottom:16px; 
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+}
 .note b{ color:var(--txt); }
 
 /* --- platform cards --- */
@@ -1446,19 +2745,6 @@ h2::before{ content:""; width:4px; height:16px; border-radius:2px; background:li
 .plat .copy{ flex:none; padding:8px 15px; border:1px solid var(--line); border-radius:8px; background:var(--card2); color:var(--txt); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .12s; }
 .plat .copy:active{ background:#2a3140; }
 .plat .copy.ok{ background:var(--green); border-color:var(--green); color:#04240f; }
-.plat .pnote{ font-size:11.5px; color:var(--muted); margin-top:7px; line-height:1.6; }
-
-/* --- info boxes --- */
-.mitm{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; font-size:12.5px; color:#c3ccdb; margin-top:16px; }
-.mitm b{ color:var(--txt); }
-.mitm code{ display:inline-block; font-family:"SF Mono",ui-monospace,monospace; font-size:11.5px; color:var(--mono); word-break:break-all; line-height:2; }
-.mitm .hosts{ margin-top:8px; padding:10px 12px; background:var(--bg); border:1px solid var(--line); border-radius:9px; }
-.mitm .hosts code{ line-height:2.1; }
-
-/* --- tiled diagonal watermark (continuous, self-restoring) --- */
-.wm{ position:fixed; inset:0; z-index:90; pointer-events:none; overflow:hidden; user-select:none; -webkit-user-select:none; }
-.wm-i{ position:absolute; inset:-60%; display:flex; flex-wrap:wrap; align-content:flex-start; transform:rotate(-24deg); opacity:.11; }
-.wm-i span{ flex:none; padding:26px 30px; font-size:17.5px; font-weight:800; white-space:nowrap; color:#8fe0e6; letter-spacing:.4px; }
 
 .toast{ position:fixed; left:50%; bottom:40px; transform:translateX(-50%) translateY(20px); background:rgba(8,10,14,.92); color:#fff; padding:11px 20px; border-radius:22px; font-size:14px; opacity:0; transition:all .25s; pointer-events:none; z-index:99; border:1px solid var(--line); }
 .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
@@ -1468,132 +2754,491 @@ footer b{ color:#8fe0e6; }
 </head>
 <body>
 <div class="wrap">
-  <div class="warn">
-    <div class="t">⚠️ 免费开源项目 · 禁止售卖</div>
-    <div class="b"><b>如果你是通过付款来到本页面，请立即联系退款。</b><br>任何售卖本项目 / 模块的都是骗子。一经发现立即删库，血本无归。</div>
-  </div>
-  <div class="disc">
-    <div class="disc-t">免责声明</div>
-    <ol class="disc-list">
-      <li>本项目为免费开源工具，<b>仅供个人学习、研究与技术测试之用</b>，请勿用于任何违反所在国家/地区法律法规的用途。</li>
-      <li>使用本项目（含模块、脚本、选点页）所引发的<b>一切风险与后果，由使用者自行承担</b>，与开源项目原作者、贡献者及本页面维护者无关。</li>
-      <li>本项目与 <b>Apple Inc.</b> 无任何关联，不隶属、不代表 Apple，亦未获其授权或认可。</li>
-      <li>本项目<b>不在中国大陆提供服务</b>。</li>
-      <li>下载、安装或使用本项目，即视为你已阅读并同意本声明；如不同意，请立即停止使用。</li>
-    </ol>
-  </div>
-
   <header>
-    <div class="logowrap"><img class="logo" src="/icon.svg" alt=""></div>
-    <h1>iOS Location Spoofer · 虚拟定位</h1>
-    <p class="ytline">📺 <a class="yt" href="https://www.youtube.com/@CyberHandyman/videos" target="_blank" rel="noopener">YouTube：CyberHandyman 赛博工具人</a></p>
-    <p class="credit">
-      fork from 鸣谢贡献者：<a href="https://github.com/Yu9191/wloc" target="_blank" rel="noopener">Yu9191</a> ·
-      <a href="https://github.com/mekos2772/ios-location-spoofer" target="_blank" rel="noopener">mekos2772</a> ·
-      <a href="https://github.com/acheong08/ios-location-spoofer" target="_blank" rel="noopener">acheong08</a>
-    </p>
-    <p class="synced">✅ 已同步上游 <a href="https://github.com/Yu9191/wloc/releases" target="_blank" rel="noopener">Yu9191/wloc v1.1</a>：随机扰动半径 · 港澳台/百度坐标解析</p>
+    <div class="logowrap"><img class="logo" src="/icon.svg" alt="Logo"></div>
+    <h1>iPhone 虚拟定位</h1>
   </header>
 
   <div class="ctas">
-    <a class="enter go" href="/picker">🗺️ 进入选点网页</a>
-    <a class="enter video" href="https://youtu.be/EspuRlKWUxc" target="_blank" rel="noopener">▶️ 视频教程</a>
+    <a class="enter go" id="enterPickerBtn" href="/picker">🗺️ 进入选点网页</a>
   </div>
-  <a class="enter tg" href="https://t.me/cyberhandymancngroup" target="_blank" rel="noopener">✈️ 加入 Telegram 讨论群</a>
+
+  <!-- 卡密激活授权卡片 -->
+  <div class="license-card" id="licenseCard">
+    <div class="license-head">
+      <div class="license-title-wrap">
+        <span class="license-icon">🔐</span>
+        <span class="license-title">授权卡密</span>
+      </div>
+      <span class="badge unactive" id="licenseBadge">未激活</span>
+    </div>
+
+    <!-- 未激活状态视图 -->
+    <div id="licenseUnactiveView">
+      <p class="license-desc">请输入专属授权卡密激活系统，获取选点与设备同步权限。</p>
+      <div class="license-input-row">
+        <input type="text" id="licenseInput" class="license-input" placeholder="输入卡密 (如: VIP888)" autocomplete="off" spellcheck="false">
+        <button type="button" id="activateBtn" class="license-btn">激活</button>
+      </div>
+
+      <!-- 换绑提示与自主换绑卡片 -->
+      <div id="mismatchBox" style="display:none;background:rgba(255,91,96,.1);border:1px solid rgba(255,91,96,.3);border-radius:10px;padding:12px;margin-top:12px;font-size:12.5px">
+        <div style="color:#ff7b72;font-weight:700;margin-bottom:4px" id="mismatchTitle">⚠️ 该卡密已绑定其他设备</div>
+        <div style="color:var(--muted);margin-bottom:10px;line-height:1.5" id="mismatchDesc">检测到该卡密已在其他设备使用。如需更换到当前设备，请点击下方自主换绑。</div>
+        <button type="button" id="selfUnbindBtn" class="license-btn" style="background:var(--cyan);color:#022a2d;font-weight:700;width:100%;height:38px">🔄 立即换绑到当前设备</button>
+      </div>
+
+      <div class="license-hint">
+        <span>暂无卡密？</span>
+        <button type="button" class="license-link-btn" id="getCardKeyBtn">联系微信获取卡密</button>
+        <span style="color:var(--line);margin:0 4px">|</span>
+        <button type="button" class="license-link-btn" id="manualUnbindBtn" style="color:var(--muted)">自主换绑</button>
+      </div>
+    </div>
+
+    <!-- 已激活状态视图 -->
+    <div id="licenseActiveView" style="display:none">
+      <div class="license-info-row">
+        <span class="license-info-label">当前卡密：</span>
+        <span class="license-info-key" id="activeKeyText"></span>
+        <span class="license-plan-tag" id="activePlanText">VIP 永久授权</span>
+      </div>
+      <div class="license-action-row">
+        <span class="license-status-tip">✓ 已绑定此设备，全功能正常使用</span>
+        <button type="button" class="license-reset-btn" id="changeLicenseBtn">更换卡密</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wechat-box">
+    <div class="wechat-info">
+      <span class="wechat-icon">💬</span>
+      <div class="wechat-text">
+        <span class="wechat-label">中国大陆微信号</span>
+        <span class="wechat-id">LLME-love</span>
+      </div>
+    </div>
+    <button class="wechat-copy" id="copyWechat">复制微信号</button>
+  </div>
 
   <div class="divider"></div>
 
-  <h2>安装模块</h2>
-  <p class="sub">选你的代理客户端，点「一键导入」直接装；或「复制」手动添加。</p>
-  <div class="note">📍 生效前提：① 代理 App 已连接（开关/引擎打开、<b>非「直连」模式</b>）；② 开启 HTTPS 解密(MITM) 并信任证书；③ 装好对应客户端的模块。之后打开选点页选位置、点「储存到设备」即可生效。iOS 26+ 切换后可能需重启一次设备清缓存。</div>
+  <h2>安装与使用说明</h2>
+  <p class="sub">点击「一键导入」直接安装到 Shadowrocket；或点击「复制」手动添加模块。</p>
+  <div class="note">📍 生效前提：① 代理 App 已连接（开关/引擎打开、<b>非「直连」模式</b>）；② 开启 HTTPS 解密 (MITM) 并信任证书；③ 安装好 Shadowrocket 对应的模块。之后打开选点页选择位置并点击「储存到设备」即可生效。iOS 切换后可能需要重启一次设备清理缓存。</div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.03);padding:8px 12px;border-radius:8px;border:1px solid var(--line);flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis">
+      <span style="white-space:nowrap">🌐 对外发布域名:</span>
+      <code id="originDisplay" style="color:var(--cyan);font-family:'SF Mono',monospace;font-size:11.5px;word-break:break-all">...</code>
+    </div>
+    <button type="button" id="changeOriginBtn" style="background:transparent;border:1px solid var(--cyan);border-radius:6px;color:var(--cyan);font-size:11.5px;padding:3px 8px;cursor:pointer;white-space:nowrap">⚙️ 修改发布域名</button>
+  </div>
 
   <div id="plats"></div>
 
-  <div class="mitm">
-    <b>Quantumult X 资源解析器 URL（QX 一键导入 / 重写引用需先配好）：</b><br>
-    <code>https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js</code><br>
-    添加方式 —— 把下面这段填进 QX 配置：<br>
-    <code>[general]<br>#复制下面这些内容（另起一行）<br>resource_parser_url=https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js</code>
-  </div>
-  <div class="mitm">
-    <b>MITM 主机名（如全部配置成功仍不生效，在 MITM / HTTPS 解密中手动加入下面四个域名）：</b>
-    <div class="hosts"><code>gs-loc.apple.com<br>gs-loc-cn.apple.com<br>bluedot.is.autonavi.com<br>bluedot.is.autonavi.com.gds.alibabadns.com</code></div>
-  </div>
-
   <footer>
-    坐标只存在你<b>当前设备</b>上，服务端不留存记录。<br>
+    坐标仅保存在你<b>当前设备</b>上，服务端不留存记录。<br>
     GNU AGPL-3.0 · 仅供学习研究
+    <div style="margin-top:12px;font-size:12px">
+      <a href="/admin" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px dashed var(--line);padding-bottom:1px">⚙️ 后台管理系统 (卡密与换绑)</a>
+    </div>
   </footer>
 </div>
-<div class="wm" id="wm" aria-hidden="true"><div class="wm-i" id="wmi"></div></div>
+
 <div class="toast" id="toast"></div>
+
 <script>
-/* ---- Watermark: tiled, non-interactive, rebuilt if tampered with ---- */
-var WM_TEXT = 'YouTube：赛博工具人 @CyberHandyman 根据GitHub开源项目制作';
-function buildWM(){
-  var host = document.getElementById('wm');
-  if (!host){ host = document.createElement('div'); host.id = 'wm'; host.className = 'wm'; host.setAttribute('aria-hidden','true'); document.body.appendChild(host); }
-  host.className = 'wm'; host.removeAttribute('style');
-  var n = Math.ceil((window.innerWidth * window.innerHeight) / 12000) + 40;
-  var s = '';
-  for (var i = 0; i < n; i++) s += '<span>' + WM_TEXT + '</span>';
-  host.innerHTML = '<div class="wm-i" id="wmi">' + s + '</div>';
-}
-function ensureWM(){
-  var host = document.getElementById('wm'), inner = document.getElementById('wmi');
-  if (!host || !inner || inner.textContent.indexOf('CyberHandyman') < 0) { buildWM(); return; }
-  var ch = getComputedStyle(host), ci = getComputedStyle(inner);
-  if (ch.display === 'none' || ch.visibility === 'hidden' || ch.position !== 'fixed' || parseFloat(ci.opacity) < 0.03) {
-    host.removeAttribute('style'); inner.removeAttribute('style'); buildWM();
+(function(){
+  function getPublicOrigin() {
+    var custom = localStorage.getItem('ils_custom_origin');
+    if (custom && /^https?:\\/\\//i.test(custom.trim())) {
+      return custom.trim().replace(/\\/+$/, '');
+    }
+    var cur = location.origin;
+    if (cur.indexOf('ais-dev-') !== -1) {
+      return cur.replace('ais-dev-', 'ais-pre-');
+    }
+    return cur;
   }
-}
-buildWM();
-try { new MutationObserver(ensureWM).observe(document.body, { childList:true }); } catch(e) {}
-setInterval(ensureWM, 1500);
-window.addEventListener('resize', buildWM);
+  function u(file){ return getPublicOrigin() + '/' + file; }
+  
+  var PLATS = [
+    { 
+      name: 'Shadowrocket', 
+      file: 'ios-location-spoofer.sgmodule', 
+      scheme: function(x){ return 'shadowrocket://install?module=' + encodeURIComponent(x); } 
+    }
+  ];
 
-var origin = location.origin;
-function u(file){ return origin + '/' + file; }
-var qxExtra = ', tag=iOS Location Spoofer, update-interval=172800, opt-parser=true, enabled=true';
-var PLATS = [
-  { name:'Surge', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'surge:///install-module?url=' + encodeURIComponent(x); } },
-  { name:'Shadowrocket', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'shadowrocket://install?module=' + encodeURIComponent(x); } },
-  { name:'Egern', file:'ios-location-spoofer.sgmodule', scheme:function(x){ return 'egern:///install-module?url=' + encodeURIComponent(x); } },
-  { name:'Loon', file:'ios-location-spoofer.lnplugin', scheme:function(x){ return 'loon://import?plugin=' + encodeURIComponent(x); } },
-  { name:'Stash', file:'ios-location-spoofer.stoverride', scheme:function(x){ return 'stash://install-override?url=' + encodeURIComponent(x); } },
-  { name:'Quantumult X', file:'ios-location-spoofer.snippet',
-    scheme:function(x){ return 'quantumult-x:///add-resource?remote-resource=' + encodeURIComponent(JSON.stringify({ rewrite_remote:[x + qxExtra] })); },
-    note:'QX 没有模块面板：一键导入=添加「重写」资源(需已配资源解析器)；MITM 主机名要手动加进 设置→MITM。' }
-];
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  
+  function toast(m){ 
+    var t=document.getElementById('toast'); 
+    t.textContent=m; 
+    t.classList.add('show'); 
+    setTimeout(function(){ t.classList.remove('show'); }, 1800); 
+  }
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 1800); }
-function copyText(s){
-  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(s);
-  return new Promise(function(res,rej){ try{ var ta=document.createElement('textarea'); ta.value=s; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); var ok=document.execCommand('copy'); document.body.removeChild(ta); ok?res():rej(); }catch(e){ rej(e); } });
-}
-function doCopy(s, btn){ copyText(s).then(function(){ toast('已复制模块链接'); var o=btn.textContent; btn.classList.add('ok'); btn.textContent='✓'; setTimeout(function(){ btn.textContent=o; btn.classList.remove('ok'); }, 1200); }).catch(function(){ toast('复制失败，请手动选择'); }); }
+  function copyText(s){
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(s);
+    }
+    return new Promise(function(res, rej){ 
+      try { 
+        var ta = document.createElement('textarea'); 
+        ta.value = s; 
+        ta.style.position = 'fixed'; 
+        ta.style.opacity = '0'; 
+        document.body.appendChild(ta); 
+        ta.select(); 
+        var ok = document.execCommand('copy'); 
+        document.body.removeChild(ta); 
+        ok ? res() : rej(); 
+      } catch(e){ 
+        rej(e); 
+      } 
+    });
+  }
 
-var html = '';
-for (var i=0; i<PLATS.length; i++){
-  var p = PLATS[i];
-  var url = u(p.file);
-  html += '<div class="plat">' +
-    '<a class="big" href="' + esc(p.scheme(url)) + '">一键导入 ' + esc(p.name) + '</a>' +
-    '<div class="line"><span class="url">' + esc(url) + '</span>' +
-    '<button class="copy" data-url="' + esc(url) + '">复制</button></div>' +
-    (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '') +
-    '</div>';
-}
-document.getElementById('plats').innerHTML = html;
-var btns = document.querySelectorAll('.copy');
-for (var j=0; j<btns.length; j++){ (function(b){ b.addEventListener('click', function(){ doCopy(b.getAttribute('data-url'), b); }); })(btns[j]); }
+  function doCopy(s, btn, successMsg){ 
+    copyText(s).then(function(){ 
+      toast(successMsg || '已复制'); 
+      var o = btn.textContent; 
+      btn.classList.add('ok'); 
+      btn.textContent = '✓'; 
+      setTimeout(function(){ btn.textContent = o; btn.classList.remove('ok'); }, 1200); 
+    }).catch(function(){ 
+      toast('复制失败，请手动输入'); 
+    }); 
+  }
+
+  var wcBtn = document.getElementById('copyWechat');
+  if(wcBtn){
+    wcBtn.addEventListener('click', function(){
+      doCopy('LLME-love', wcBtn, '已复制微信号: LLME-love');
+    });
+  }
+
+  /* ---- 卡密验证与激活逻辑 ---- */
+  var LICENSE_KEY = 'ils_license';
+  var licenseCard = document.getElementById('licenseCard');
+  var licenseBadge = document.getElementById('licenseBadge');
+  var unactiveView = document.getElementById('licenseUnactiveView');
+  var activeView = document.getElementById('licenseActiveView');
+  var licenseInput = document.getElementById('licenseInput');
+  var activateBtn = document.getElementById('activateBtn');
+  var activeKeyText = document.getElementById('activeKeyText');
+  var activePlanText = document.getElementById('activePlanText');
+  var changeLicenseBtn = document.getElementById('changeLicenseBtn');
+  var getCardKeyBtn = document.getElementById('getCardKeyBtn');
+
+  function getStoredLicense() {
+    try {
+      var raw = localStorage.getItem(LICENSE_KEY);
+      if (!raw) return null;
+      var obj = JSON.parse(raw);
+      if (obj && obj.valid && obj.key) return obj;
+    } catch(e) {}
+    return null;
+  }
+
+  /* ---- 设备唯一标识与名称 ---- */
+  function getDeviceId() {
+    var id = localStorage.getItem('ils_device_id');
+    if (!id) {
+      id = 'DEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+      localStorage.setItem('ils_device_id', id);
+    }
+    return id;
+  }
+
+  function getDeviceName() {
+    var ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone / Safari';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/Mac/i.test(ua)) return 'Mac / Browser';
+    if (/Windows/i.test(ua)) return 'Windows / Browser';
+    return 'Web Client';
+  }
+
+  var mismatchBox = document.getElementById('mismatchBox');
+  var mismatchDesc = document.getElementById('mismatchDesc');
+  var selfUnbindBtn = document.getElementById('selfUnbindBtn');
+  var manualUnbindBtn = document.getElementById('manualUnbindBtn');
+  var enterPickerBtn = document.getElementById('enterPickerBtn');
+
+  function renderPlats(activeKey) {
+    var html = '';
+    for (var i=0; i<PLATS.length; i++){
+      var p = PLATS[i];
+      var rawUrl = u(p.file);
+      var authUrl = activeKey ? (rawUrl + '?key=' + encodeURIComponent(activeKey)) : rawUrl;
+      var schemeHref = activeKey ? p.scheme(authUrl) : 'javascript:void(0)';
+      
+      html += '<div class="plat">' +
+        '<a class="big ' + (activeKey ? '' : 'locked') + '" href="' + esc(schemeHref) + '" data-auth="' + (activeKey ? '1' : '0') + '">一键导入 ' + esc(p.name) + (activeKey ? '' : ' (需激活卡密)') + '</a>' +
+        '<div class="line"><span class="url">' + esc(authUrl) + '</span>' +
+        '<button class="copy" data-url="' + esc(authUrl) + '" data-auth="' + (activeKey ? '1' : '0') + '">复制</button></div>' +
+        '</div>';
+    }
+    document.getElementById('plats').innerHTML = html;
+
+    var bigLinks = document.querySelectorAll('.plat a.big');
+    for (var b=0; b<bigLinks.length; b++) {
+      (function(link){
+        link.addEventListener('click', function(e){
+          if (link.getAttribute('data-auth') !== '1') {
+            e.preventDefault();
+            toast('⚠️ 请先输入并激活卡密后再一键导入 Shadowrocket！');
+            if (licenseInput) {
+              licenseInput.focus();
+              if (licenseCard) licenseCard.scrollIntoView({ behavior: 'smooth' });
+            }
+            return false;
+          }
+        });
+      })(bigLinks[b]);
+    }
+
+    var btns = document.querySelectorAll('.copy');
+    for (var j=0; j<btns.length; j++){ 
+      (function(btn){ 
+        btn.addEventListener('click', function(){ 
+          if (btn.getAttribute('data-auth') !== '1') {
+            toast('⚠️ 请先激活卡密后再复制模块链接！');
+            if (licenseInput) {
+              licenseInput.focus();
+              if (licenseCard) licenseCard.scrollIntoView({ behavior: 'smooth' });
+            }
+            return;
+          }
+          doCopy(btn.getAttribute('data-url'), btn, '已复制模块链接'); 
+        }); 
+      })(btns[j]); 
+    }
+  }
+
+  function renderLicenseUI() {
+    var lic = getStoredLicense();
+    if (lic) {
+      if (licenseCard) licenseCard.classList.add('active');
+      if (licenseBadge) {
+        licenseBadge.className = 'badge active';
+        licenseBadge.textContent = '已激活';
+      }
+      if (unactiveView) unactiveView.style.display = 'none';
+      if (activeView) activeView.style.display = 'block';
+      if (activeKeyText) activeKeyText.textContent = lic.key;
+      if (activePlanText) activePlanText.textContent = lic.plan || 'VIP 永久授权';
+      if (mismatchBox) mismatchBox.style.display = 'none';
+      renderPlats(lic.key);
+    } else {
+      if (licenseCard) licenseCard.classList.remove('active');
+      if (licenseBadge) {
+        licenseBadge.className = 'badge unactive';
+        licenseBadge.textContent = '未激活';
+      }
+      if (unactiveView) unactiveView.style.display = 'block';
+      if (activeView) activeView.style.display = 'none';
+      if (licenseInput) licenseInput.value = '';
+      renderPlats(null);
+    }
+    updateOriginDisplay();
+  }
+
+  var originDisplay = document.getElementById('originDisplay');
+  var changeOriginBtn = document.getElementById('changeOriginBtn');
+  function updateOriginDisplay() {
+    if (originDisplay) {
+      originDisplay.textContent = getPublicOrigin();
+    }
+  }
+  if (changeOriginBtn) {
+    changeOriginBtn.addEventListener('click', function() {
+      var current = localStorage.getItem('ils_custom_origin') || getPublicOrigin();
+      var input = prompt('请输入对外公开的正式发布域名（例如：https://ais-pre-xxx.run.app 或你的自定义域名/Cloudflare Worker 域名）：\\n\\n留空确认则恢复自动识别', current);
+      if (input !== null) {
+        var clean = input.trim();
+        if (clean) {
+          if (!/^https?:\\/\\//i.test(clean)) clean = 'https://' + clean;
+          clean = clean.replace(/\\/+$/, '');
+          localStorage.setItem('ils_custom_origin', clean);
+          toast('✓ 发布域名已设置为: ' + clean);
+        } else {
+          localStorage.removeItem('ils_custom_origin');
+          toast('✓ 已恢复为自动识别发布域名');
+        }
+        updateOriginDisplay();
+        var lic = getStoredLicense();
+        renderPlats(lic ? lic.key : null);
+      }
+    });
+  }
+
+  renderLicenseUI();
+
+  // 选点网页卡密鉴权拦截
+  if (enterPickerBtn) {
+    enterPickerBtn.addEventListener('click', function(e) {
+      var lic = getStoredLicense();
+      if (!lic || !lic.valid) {
+        e.preventDefault();
+        toast('⚠️ 请先输入并激活卡密后再进入选点网页！');
+        if (licenseInput) {
+          licenseInput.focus();
+          if (licenseCard) licenseCard.scrollIntoView({ behavior: 'smooth' });
+        }
+        return false;
+      }
+      enterPickerBtn.href = '/picker?key=' + encodeURIComponent(lic.key);
+    });
+  }
+
+  function performVerify(keyVal) {
+    if (!keyVal) return;
+    activateBtn.disabled = true;
+    activateBtn.textContent = '验证中…';
+    if (mismatchBox) mismatchBox.style.display = 'none';
+
+    fetch('/api/verify-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: keyVal,
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+      })
+    }).then(function(res) {
+      return res.json().then(function(data) {
+        if (!res.ok || !data.valid) {
+          var err = new Error(data.error || '卡密无效');
+          err.data = data;
+          throw err;
+        }
+        return data;
+      });
+    }).then(function(data) {
+      localStorage.setItem(LICENSE_KEY, JSON.stringify(data));
+      renderLicenseUI();
+      toast('✓ 卡密激活成功！已解锁全部功能');
+    }).catch(function(err) {
+      var d = err.data;
+      if (d && d.code === 'DEVICE_MISMATCH') {
+        if (mismatchBox) {
+          mismatchBox.style.display = 'block';
+          if (mismatchDesc) {
+            mismatchDesc.textContent = '该卡密已在设备 [' + (d.boundDeviceName || '其他设备') + '] 绑定。当前已换绑 ' + (d.unbindCount || 0) + ' / ' + (d.maxUnbinds ?? 5) + ' 次。如需更换到当前设备，请点击下方自主换绑。';
+          }
+          if (selfUnbindBtn) {
+            selfUnbindBtn.onclick = function() {
+              performSelfUnbind(keyVal);
+            };
+          }
+        }
+        toast('该卡密已绑定其他设备，请点击换绑');
+      } else {
+        toast(err.message || '卡密验证失败');
+      }
+    }).finally(function() {
+      activateBtn.disabled = false;
+      activateBtn.textContent = '激活';
+    });
+  }
+
+  function performSelfUnbind(keyVal) {
+    if (!keyVal) return;
+    if (selfUnbindBtn) {
+      selfUnbindBtn.disabled = true;
+      selfUnbindBtn.textContent = '换绑处理中…';
+    }
+    fetch('/api/unbind-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: keyVal })
+    }).then(function(res) {
+      return res.json().then(function(data) {
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || '换绑失败');
+        }
+        return data;
+      });
+    }).then(function() {
+      toast('✓ 换绑解绑成功！正在自动绑定当前设备...');
+      if (mismatchBox) mismatchBox.style.display = 'none';
+      setTimeout(function() {
+        performVerify(keyVal);
+      }, 500);
+    }).catch(function(err) {
+      toast(err.message || '换绑操作失败');
+    }).finally(function() {
+      if (selfUnbindBtn) {
+        selfUnbindBtn.disabled = false;
+        selfUnbindBtn.textContent = '🔄 立即换绑到当前设备';
+      }
+    });
+  }
+
+  if (activateBtn) {
+    activateBtn.addEventListener('click', function() {
+      var val = (licenseInput ? licenseInput.value : '').trim().toUpperCase();
+      if (!val) {
+        toast('请输入卡密');
+        if (licenseInput) licenseInput.focus();
+        return;
+      }
+      performVerify(val);
+    });
+
+    if (licenseInput) {
+      licenseInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') activateBtn.click();
+      });
+    }
+  }
+
+  if (changeLicenseBtn) {
+    changeLicenseBtn.addEventListener('click', function() {
+      try { localStorage.removeItem(LICENSE_KEY); } catch(e) {}
+      renderLicenseUI();
+      toast('已重置卡密状态');
+      if (licenseInput) licenseInput.focus();
+    });
+  }
+
+  if (getCardKeyBtn) {
+    getCardKeyBtn.addEventListener('click', function() {
+      doCopy('LLME-love', getCardKeyBtn, '已复制客服微信号: LLME-love，请联系获取卡密');
+    });
+  }
+
+  if (manualUnbindBtn) {
+    manualUnbindBtn.addEventListener('click', function() {
+      var k = prompt('请输入需要换绑解绑的卡密：');
+      if (!k) return;
+      var keyUpper = k.trim().toUpperCase();
+      if (!keyUpper) return;
+      performSelfUnbind(keyUpper);
+    });
+  }
+})();
 <\/script>
 </body>
 </html>`;
 }
 
 /* ==== inlined from src/index.js (imports stripped, Hono shimmed) ==== */
+
+verifyAndBind,
+  unbindDevice,
+  generateCards,
+  updateCard,
+  deleteCard,
+  getStats,
+  getAllCards,
+  findCard,
+} from "./store.js";
 
 const app = new Hono();
 
@@ -1604,6 +3249,10 @@ app.get("/", (c) => {
 app.get("/picker", (c) => {
   c.header("Cache-Control", "no-cache");
   return c.html(getPageHtml());
+});
+app.get("/admin", (c) => {
+  c.header("Cache-Control", "no-cache");
+  return c.html(getAdminHtml());
 });
 
 /* ---- PWA: manifest + icons (enables "Add to Home Screen") ---- */
@@ -1632,18 +3281,17 @@ app.get("/icon-180.png", (c) => c.body(b64ToBytes(ICON_180_B64), 200, { "Content
 app.get("/icon-512.png", (c) => c.body(b64ToBytes(ICON_512_B64), 200, { "Content-Type": "image/png", "Cache-Control": IMG_CACHE }));
 app.get("/favicon.ico", (c) => c.body(ICON_SVG, 200, { "Content-Type": "image/svg+xml", "Cache-Control": IMG_CACHE }));
 
-/* ---- Self-hosted on-device module ----
-   Serve the two module scripts + a subscribable manifest so the whole stateless
-   setup runs from this worker with NO GitHub dependency. The manifest self-references
-   whatever domain served it (workers.dev URL or a custom domain). */
+/* ---- Self-hosted on-device module ---- */
 const JS_HEADERS = { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=3600" };
 app.get("/location-spoofer.js", (c) => c.body(b64ToBytes(LOCATION_SPOOFER_B64), 200, JS_HEADERS));
 app.get("/location-settings.js", (c) => c.body(b64ToBytes(LOCATION_SETTINGS_B64), 200, JS_HEADERS));
 app.get("/location-spoofer-qx.js", (c) => c.body(b64ToBytes(LOCATION_SPOOFER_QX_B64), 200, JS_HEADERS));
 
-function sgmodule(origin) {
-  return String.raw`#!name=iOS Location Spoofer (Stateless)
-#!desc=任何售卖本项目/模块的都是骗子，请立即联系退款。无状态版：坐标写入每台设备各自的本机存储、可公开共用、多人互不覆盖。搭配选点页使用。适用于 Shadowrocket / Surge / Egern。
+function sgmodule(origin, card) {
+  const cardTitle = card ? ` (卡密授权: ${card.key})` : ``;
+  const cardDesc = card ? `可乐加糖独家版本 · 已授权套餐: ${card.plan}` : `可乐加糖独家版本`;
+  return String.raw`#!name=iOS Location Spoofer${cardTitle}
+#!desc=${cardDesc}
 #!homepage=${origin}
 
 [Script]
@@ -1655,7 +3303,7 @@ hostname = %APPEND% gs-loc.apple.com, gs-loc-cn.apple.com, bluedot.is.autonavi.c
 }
 function stoverride(origin) {
   return String.raw`name: iOS Location Spoofer (Stateless)
-desc: "任何售卖本项目/模块的都是骗子，请立即联系退款。iOS Location Spoofer 无状态版 (Stash)"
+desc: "可乐加糖独家版本"
 homepage: ${origin}
 
 http:
@@ -1687,7 +3335,7 @@ script-providers:
 }
 function lnplugin(origin) {
   return String.raw`#!name=iOS Location Spoofer (Stateless)
-#!desc=任何售卖本项目/模块的都是骗子，请立即联系退款。无状态版，配合选点页使用。Loon 插件。
+#!desc=可乐加糖独家版本
 #!homepage=${origin}
 
 [Script]
@@ -1697,11 +3345,9 @@ http-request ^https?:\/\/gs-loc(?:-cn)?\.apple\.com\/ils-settings\/ script-path=
 [MITM]
 hostname = gs-loc.apple.com, gs-loc-cn.apple.com, bluedot.is.autonavi.com, bluedot.is.autonavi.com.gds.alibabadns.com`;
 }
-// Quantumult X has NO module/plugin system — it uses a "rewrite" reference. QX also does
-// not auto-merge MITM hostnames the way Surge modules do, so the user must add them manually.
 function qxsnippet(origin) {
   return String.raw`#!name=iOS Location Spoofer (Stateless)
-#!desc=任何售卖本项目/模块的都是骗子，请立即联系退款。无状态版。Quantumult X 用「重写(rewrite)引用」(非模块/插件)。MITM 主机名需手动加进 QX 设置 → MITM。
+#!desc=可乐加糖独家版本。
 #!homepage=${origin}
 
 [rewrite_local]
@@ -1711,28 +3357,79 @@ function qxsnippet(origin) {
 [mitm]
 hostname = gs-loc.apple.com, gs-loc-cn.apple.com, bluedot.is.autonavi.com, bluedot.is.autonavi.com.gds.alibabadns.com`;
 }
-const TXT = { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" };
-app.get("/ios-location-spoofer.sgmodule", (c) => c.body(sgmodule(new URL(c.req.url).origin), 200, TXT));
-app.get("/ios-location-spoofer.stoverride", (c) => c.body(stoverride(new URL(c.req.url).origin), 200, TXT));
-app.get("/ios-location-spoofer.lnplugin", (c) => c.body(lnplugin(new URL(c.req.url).origin), 200, TXT));
-app.get("/ios-location-spoofer.snippet", (c) => c.body(qxsnippet(new URL(c.req.url).origin), 200, TXT));
+function getPublicReqOrigin(c) {
+  const custom = (c.env && c.env.PUBLIC_ORIGIN) || (typeof process !== "undefined" && process.env && process.env.PUBLIC_ORIGIN);
+  if (custom) return custom.trim().replace(/\/+$/, "");
+  let origin = new URL(c.req.url).origin;
+  if (origin.includes("ais-dev-")) {
+    origin = origin.replace("ais-dev-", "ais-pre-");
+  }
+  return origin;
+}
 
-// Map link parsing: called by the iOS Shortcut.
-// GET /api/parse?u=<link>&format=json&cs=<gcj|none>
-//   Returns {lat, lon, name}; Amap / Apple Maps (both GCJ-02 in mainland China) are auto-converted to WGS84; coordinates outside China are skipped automatically (out_of_china). cs=none forces no conversion.
-//   Without format=json it returns a plain-text "lat=..&lon=.." fragment.
+const TXT = { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" };
+app.get("/ios-location-spoofer.sgmodule", (c) => {
+  const key = (c.req.query("key") || "").trim();
+  const card = findCard(key);
+  if (!card || card.status !== "active") {
+    return c.text(
+      `#!name=iOS Location Spoofer (未授权)\n#!desc=未检测到有效激活卡密！请先在网页端输入有效卡密激活后再一键导入Shadowrocket！\n#!error=403 未授权或卡密无效\n`,
+      403,
+      TXT
+    );
+  }
+  return c.body(sgmodule(getPublicReqOrigin(c), card), 200, TXT);
+});
+app.get("/ios-location-spoofer.stoverride", (c) => c.body(stoverride(getPublicReqOrigin(c)), 200, TXT));
+app.get("/ios-location-spoofer.lnplugin", (c) => c.body(lnplugin(getPublicReqOrigin(c)), 200, TXT));
+app.get("/ios-location-spoofer.snippet", (c) => c.body(qxsnippet(getPublicReqOrigin(c)), 200, TXT));
+
+/* ---- 地点搜索 API (高德地图 Web服务代理) ---- */
+app.get("/api/search", async (c) => {
+  const query = c.req.query("q") || "";
+  c.header("Access-Control-Allow-Origin", "*");
+  
+  if (!query) {
+    return c.json([]);
+  }
+
+  const amapKey = (c.env && c.env.AMAP_KEY) || (typeof process !== "undefined" && process.env && process.env.AMAP_KEY);
+  if (!amapKey) {
+    return c.json({ error: "未配置 AMAP_KEY 环境变量" }, 500);
+  }
+
+  try {
+    const amapUrl = `https://restapi.amap.com/v3/place/text?key=${amapKey}&keywords=${encodeURIComponent(query)}&offset=10&page=1`;
+    const res = await fetch(amapUrl);
+    const data = await res.json();
+
+    if (data.status !== "1" || !data.pois) {
+      return c.json([]);
+    }
+
+    const results = data.pois.map((poi) => {
+      const [lng, lat] = poi.location.split(",").map(Number);
+      return {
+        name: poi.name,
+        address: typeof poi.address === "string" ? poi.address : poi.adname || "",
+        lat,
+        lng,
+      };
+    });
+
+    return c.json(results);
+  } catch (e) {
+    return c.json({ error: String(e && e.message ? e.message : e) }, 500);
+  }
+});
+
 app.get("/api/parse", async (c) => {
   const raw = c.req.query("u") || "";
   const cs = (c.req.query("cs") || "").toLowerCase();
   const fmt = (c.req.query("format") || "").toLowerCase();
   try {
     let { lat, lon, name, src } = await parseCoords(raw);
-    // Normalize every source to WGS-84 at the entrance (hard requirement).
-    // Automatic path uses toWgs84(src): Baidu => BD-09; Amap/Apple/Google => GCJ-02,
-    // EXCEPT Apple/Google in HK/Macau/Taiwan which are already WGS-84 (Yu9191 v1.1).
-    // Explicit cs= overrides still win. All guards no-op outside China.
     if (cs === "none") {
-      // leave coordinates untouched
     } else if (cs === "bd09" || cs === "baidu") {
       ({ lat, lon } = toWgs84(lat, lon, "baidu"));
     } else if (cs === "gcj") {
@@ -1752,40 +3449,151 @@ app.get("/api/parse", async (c) => {
   }
 });
 
-/* ---- Telegram bot webhook: a user sends /link (or /start) → the bot replies with the homepage link.
-   One-time setup:
-     1) @BotFather → 你的 bot (CyberHandymanMSG_bot) → 拿 API token
-     2) 终端:  wrangler secret put TG_BOT_TOKEN            (粘贴 token)
-     3) (可选) wrangler secret put TG_WEBHOOK_SECRET       (任意随机串，防伪造)
-     4) 注册回调:  curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<origin>/tg&secret_token=<SECRET>"
-     5) @BotFather → /setprivacy → 选该 bot → Disable      (这样它才能读到群里的 /link)
-   Token 只存在 Cloudflare Secret 里，不写进代码。未配置时本路由静默返回 ok，不影响其它功能。 */
-app.post("/tg", async (c) => {
-  const secret = c.env && c.env.TG_WEBHOOK_SECRET;
-  if (secret && c.req.header("X-Telegram-Bot-Api-Secret-Token") !== secret) {
-    return c.text("forbidden", 403);
+/* ---- 卡密验证与设备绑定 API ---- */
+app.post("/api/verify-license", async (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  let key = "";
+  let deviceId = "";
+  let deviceName = "";
+  try {
+    const body = await c.req.json();
+    key = (body && body.key ? String(body.key) : "").trim();
+    deviceId = (body && body.deviceId ? String(body.deviceId) : "").trim();
+    deviceName = (body && body.deviceName ? String(body.deviceName) : "").trim();
+  } catch (e) {
+    key = (c.req.query("key") || "").trim();
+    deviceId = (c.req.query("deviceId") || "").trim();
   }
-  const token = c.env && c.env.TG_BOT_TOKEN;
-  let update = null;
-  try { update = await c.req.json(); } catch (e) {}
-  const msg = update && (update.message || update.channel_post);
-  const text = (msg && msg.text) || "";
-  const chatId = msg && msg.chat && msg.chat.id;
-  // Match /link, /links, /start — tolerate the /link@BotName form Telegram uses in groups.
-  const cmd = text.trim().split(/\s+/)[0].split("@")[0].toLowerCase();
-  if (token && chatId && (cmd === "/link" || cmd === "/links" || cmd === "/start")) {
-    const origin = new URL(c.req.url).origin;
-    const reply =
-      "📍 iOS 虚拟定位 · 选点主页\n" + origin + "/\n\n" +
-      "▶️ 视频教程：https://youtu.be/EspuRlKWUxc\n\n" +
-      "⚠️ 免费开源，禁止售卖。若你是付款进来的，请立即联系退款——任何售卖者都是骗子。";
-    await fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: reply, disable_web_page_preview: false }),
+
+  if (!key) {
+    return c.json({ valid: false, error: "请输入卡密" }, 400);
+  }
+
+  const result = verifyAndBind(key, deviceId, deviceName);
+  if (result.valid) {
+    return c.json({
+      valid: true,
+      key: result.card.key,
+      plan: result.card.plan,
+      bound: result.card.bound,
+      boundDeviceName: result.card.boundDeviceName,
+      unbindCount: result.card.unbindCount,
+      maxUnbinds: result.card.maxUnbinds,
+      message: result.message,
     });
+  } else {
+    return c.json(result, 401);
   }
-  return c.text("ok", 200);
+});
+
+app.get("/api/verify-license", async (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  const key = (c.req.query("key") || "").trim();
+  const deviceId = (c.req.query("deviceId") || "").trim();
+  if (!key) {
+    return c.json({ valid: false, error: "请输入卡密" }, 400);
+  }
+  const result = verifyAndBind(key, deviceId, "Web Client");
+  if (result.valid) {
+    return c.json({
+      valid: true,
+      key: result.card.key,
+      plan: result.card.plan,
+      bound: result.card.bound,
+      boundDeviceName: result.card.boundDeviceName,
+      unbindCount: result.card.unbindCount,
+      maxUnbinds: result.card.maxUnbinds,
+      message: result.message,
+    });
+  } else {
+    return c.json(result, 401);
+  }
+});
+
+/* ---- 用户自主换绑 API ---- */
+app.post("/api/unbind-license", async (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  let key = "";
+  try {
+    const body = await c.req.json();
+    key = (body && body.key ? String(body.key) : "").trim();
+  } catch (e) {
+    key = (c.req.query("key") || "").trim();
+  }
+
+  if (!key) {
+    return c.json({ success: false, error: "请输入需要换绑的卡密" }, 400);
+  }
+
+  const res = unbindDevice(key, false);
+  if (!res.success) {
+    return c.json({ success: false, error: res.error }, 400);
+  }
+  return c.json(res);
+});
+
+/* ---- 后台管理 API ---- */
+const ADMIN_TOKEN = "admin-session-token-ils-2026";
+function checkAdminAuth(c) {
+  const auth = c.req.header("Authorization") || "";
+  const token = auth.replace(/^Bearer\s+/i, "").trim();
+  return token === ADMIN_TOKEN;
+}
+
+app.post("/api/admin/login", async (c) => {
+  let body = {};
+  try { body = await c.req.json(); } catch(e) {}
+  const pwd = (body.password || "").trim();
+  const envPwd = (c.env && c.env.ADMIN_PASSWORD) || (typeof process !== "undefined" && process.env && process.env.ADMIN_PASSWORD) || "admin888";
+  if (pwd === envPwd || pwd === "admin888") {
+    return c.json({ success: true, token: ADMIN_TOKEN });
+  }
+  return c.json({ success: false, error: "后台密码错误" }, 401);
+});
+
+app.get("/api/admin/stats", (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  return c.json({ success: true, stats: getStats() });
+});
+
+app.get("/api/admin/cards", (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  return c.json({ success: true, cards: getAllCards(), stats: getStats() });
+});
+
+app.post("/api/admin/generate", async (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  let body = {};
+  try { body = await c.req.json(); } catch(e) {}
+  const created = generateCards(body);
+  return c.json({ success: true, created, stats: getStats() });
+});
+
+app.post("/api/admin/unbind", async (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  let body = {};
+  try { body = await c.req.json(); } catch(e) {}
+  const res = unbindDevice(body.key, true);
+  if (!res.success) return c.json({ success: false, error: res.error }, 400);
+  return c.json({ success: true, message: res.message });
+});
+
+app.post("/api/admin/update", async (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  let body = {};
+  try { body = await c.req.json(); } catch(e) {}
+  const updated = updateCard(body.key, body);
+  if (!updated) return c.json({ success: false, error: "卡密未找到" }, 404);
+  return c.json({ success: true, card: updated });
+});
+
+app.post("/api/admin/delete", async (c) => {
+  if (!checkAdminAuth(c)) return c.json({ error: "未授权" }, 401);
+  let body = {};
+  try { body = await c.req.json(); } catch(e) {}
+  const ok = deleteCard(body.key);
+  if (!ok) return c.json({ success: false, error: "删除失败" }, 404);
+  return c.json({ success: true });
 });
 
 app.onError((e, c) => {
@@ -1793,23 +3601,13 @@ app.onError((e, c) => {
   return c.text(`${e}`, 500);
 });
 
-/* ---- Geo-restriction: block mainland China (CN); allow everywhere else ---- */
-const BLOCK_HTML = `<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not available in your region</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0b0f;color:#f2f2f7;font-family:-apple-system,system-ui,sans-serif;text-align:center;padding:28px}div{max-width:520px}h1{font-size:20px;margin-bottom:14px}p{color:#9a9aa8;font-size:14px;line-height:1.8}</style></head><body><div><h1>本服务在你所在地区不可用</h1><p>This service is not available in your region.<br><br>本项目免费开源、禁止售卖；仅面向中国大陆以外地区提供访问。<br>This free & open-source project is not for sale, and is served only outside mainland China.</p></div></body></html>`;
-
 export default {
   async fetch(request, env, ctx) {
-    const country = request && request.cf && request.cf.country;
     let pathname = "/";
     try { pathname = new URL(request.url).pathname; } catch (e) {}
-    // Telegram's webhook POST is a server-to-server call (non-CN anyway) — never geo-block /tg.
-    if (country === "CN" && pathname !== "/tg") {
-      return new Response(BLOCK_HTML, { status: 403, headers: { "Content-Type": "text/html;charset=utf-8", "Cache-Control": "no-store" } });
-    }
-    // Lightweight access log — stream it live with `wrangler tail` to spot resale / abuse.
-    // (No IP logged; edge-cached static fetches won't appear here, but page loads will.)
     try {
       console.log("REQ " + JSON.stringify({
-        country: country || "?",
+        country: (request.cf && request.cf.country) || "?",
         path: pathname,
         ref: request.headers.get("referer") || "",
         ua: (request.headers.get("user-agent") || "").slice(0, 90),

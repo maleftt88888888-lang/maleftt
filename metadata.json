@@ -1,0 +1,10 @@
+{
+  "name": "iOS Location Spoofer",
+  "description": "Stateless map picker and configuration generator for iOS location spoofing (WGS-84 and altitude).",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

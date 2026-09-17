@@ -131,12 +131,30 @@ body {
 .modal .modal-btns { display:flex; gap:8px; }
 .modal .modal-btns .btn { padding:12px; }
 
+/* ---- License Card ---- */
+.license-card { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; margin-bottom:12px; border-radius:14px; border:1px solid var(--line); background:var(--card); font-size:12.5px; transition:all .2s; }
+.license-card.unactive { border-color:rgba(255,91,96,.35); background:linear-gradient(135deg,rgba(255,91,96,.08),rgba(18,22,29,.9)); }
+.license-card.active { border-color:rgba(34,197,94,.35); background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(18,22,29,.9)); }
+.license-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.license-badge { font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; flex:none; }
+.license-badge.unactive { background:rgba(255,91,96,.2); color:var(--red); }
+.license-badge.active { background:rgba(34,197,94,.2); color:var(--green); }
+.license-text { color:var(--txt); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.license-btn-action { flex:none; padding:6px 12px; font-size:12px; font-weight:700; border-radius:8px; border:none; cursor:pointer; transition:transform .12s; }
+.license-btn-action:active { transform:scale(.95); }
+.license-btn-action.go { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; }
+.license-btn-action.subtle { background:var(--card2); border:1px solid var(--line); color:var(--muted); }
+
 /* ---- map overlay switches: dark glass pills ---- */
 .layer-switch { position:absolute; top:10px; right:10px; z-index:1000; display:flex; gap:4px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
 .layer-btn { border:none; background:transparent; padding:6px 10px; border-radius:7px; font-size:12px; font-weight:600; color:#a8b1c0; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .layer-btn.active { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; font-weight:700; }
 .layer-btn:active { transform:scale(.95); }
-.lang-switch { position:absolute; top:10px; left:10px; z-index:1000; display:flex; gap:2px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
+.lang-switch { position:absolute; top:10px; left:10px; z-index:1000; display:flex; align-items:center; gap:6px; }
+.back-btn { display:inline-flex; align-items:center; justify-content:center; gap:4px; text-decoration:none; background:rgba(10,12,17,.78); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:6px 11px; font-size:12px; font-weight:700; color:var(--txt); box-shadow:0 4px 18px rgba(0,0,0,.45); transition:all .15s; cursor:pointer; }
+.back-btn:hover { background:rgba(23,195,207,.15); border-color:var(--cyan); color:var(--cyan); }
+.back-btn:active { transform:scale(.95); }
+.lang-box { display:flex; gap:2px; background:rgba(10,12,17,.74); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 4px 18px rgba(0,0,0,.45); }
 .lang-btn { border:none; background:transparent; padding:6px 11px; border-radius:7px; font-size:12px; font-weight:700; color:#a8b1c0; cursor:pointer; transition:all .15s; }
 .lang-btn.active { background:linear-gradient(135deg,var(--cyan),var(--cyan2)); color:#022a2d; }
 .lang-btn:active { transform:scale(.95); }
@@ -148,8 +166,14 @@ body {
 <div style="position:relative">
 <div id="map"></div>
 <div class="lang-switch">
-  <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
-  <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  <a href="/" class="back-btn" id="backToHomeBtn" title="返回首页">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span data-i18n="back_home">返回</span>
+  </a>
+  <div class="lang-box">
+    <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  </div>
 </div>
 <div class="layer-switch">
   <button class="layer-btn active" data-layer="satellite" data-i18n="layer_satellite" onclick="switchLayer('satellite')">Satellite</button>
@@ -162,6 +186,13 @@ body {
 </div>
 <div class="panel">
   <div class="error-banner" id="errorBanner" data-i18n-html="err_html"></div>
+  <div class="license-card unactive" id="licenseCard">
+    <div class="license-left">
+      <span id="licenseBadge" class="license-badge unactive">未激活</span>
+      <span class="license-text" id="licenseText">卡密未激活 · 选点功能受限</span>
+    </div>
+    <button type="button" class="license-btn-action go" id="licenseActionBtn" onclick="openLicenseModal()">激活卡密</button>
+  </div>
   <div class="card">
     <h3 data-i18n="choose_title">Choose target location</h3>
     <div class="coords" id="coords" data-i18n="coords_hint">Tap the map or use the tools below to pick a location</div>
@@ -236,6 +267,29 @@ body {
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="licenseModal">
+  <div class="modal" style="max-width:350px">
+    <h3 data-i18n="license_modal_title">🔐 授权卡密激活</h3>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;line-height:1.5;text-align:center" id="licenseModalHint" data-i18n="license_modal_desc">请输入专属卡密以激活系统与保存功能</div>
+    
+    <!-- 换绑提示 -->
+    <div id="modalMismatchBox" style="display:none;background:rgba(255,91,96,.1);border:1px solid rgba(255,91,96,.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px">
+      <div style="color:#ff7b72;font-weight:700;margin-bottom:4px">⚠️ 该卡密已绑定其他设备</div>
+      <div style="color:var(--muted);margin-bottom:8px" id="modalMismatchDesc">检测到该卡密已在其他设备使用。如需更换到本机，请点击换绑。</div>
+      <button type="button" class="btn btn-sm btn-primary" id="modalSelfUnbindBtn" style="width:100%" onclick="submitModalUnbind()">🔄 立即换绑到当前设备</button>
+    </div>
+
+    <input id="modalLicenseInput" placeholder="输入卡密 (如: VIP888)" autocomplete="off" spellcheck="false" style="font-family:'SF Mono',ui-monospace,monospace;text-transform:uppercase" />
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:14px;padding:0 2px">
+      <span style="color:var(--muted)">没有卡密？</span>
+      <button type="button" style="background:none;border:none;color:var(--cyan);font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline" onclick="copyContactWechat()" data-i18n="license_contact_wc">联系客服微信</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeLicenseModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" onclick="submitModalLicense()" id="modalLicenseSubmitBtn" data-i18n="license_activate_btn">立即激活</button>
+    </div>
+  </div>
+</div>
 <script>
 const SAVE_API = 'https://gs-loc.apple.com/ils-settings/save';
 const PARSE_API = '/api/parse';
@@ -255,6 +309,7 @@ let savedLon = null, savedLat = null, savedTimeStr = '';
 const I18N = {
   zh: {
     title: 'iOS 虚拟定位',
+    back_home: '返回',
     layer_satellite: '卫星', layer_amap: '高德', layer_color: '彩色', layer_standard: '标准', layer_dark: '暗色',
     err_html: '<b>模块未生效</b>请检查以下配置：<br>1. 已安装并启用 iOS Location Spoofer 模块<br>2. MITM 已开启且信任证书<br>3. MITM 主机名包含 gs-loc.apple.com<br>4. 当前网络已走代理',
     choose_title: '选择目标位置',
@@ -301,10 +356,25 @@ const I18N = {
     enter_place: '请输入地名', searching: '搜索中...',
     not_found: function(q){ return '未找到: ' + q; }, search_failed: '搜索失败',
     copied: function(x){ return '已复制: ' + x; }, copy_failed: '复制失败，请手动选择',
-    alt_unknown_copy: '海拔尚未获取，仅复制经纬度'
+    alt_unknown_copy: '海拔尚未获取，仅复制经纬度',
+    license_unactive_badge: '未激活',
+    license_active_badge: '已激活',
+    license_unactive_msg: '卡密未激活 · 选点功能受限',
+    license_active_msg: function(k, p){ return '已激活授权 · ' + (p || 'VIP') + ' (' + k + ')'; },
+    license_btn_activate: '激活卡密',
+    license_btn_change: '更换卡密',
+    license_modal_title: '🔐 授权卡密激活',
+    license_modal_desc: '请输入专属卡密以激活系统与保存功能',
+    license_activate_btn: '立即激活',
+    license_contact_wc: '联系客服微信',
+    license_wc_copied: '已复制客服微信号: LLME-love，请联系获取卡密',
+    license_active_success: '✓ 卡密激活成功！已解锁全部功能',
+    license_required: '请先输入卡密激活授权',
+    license_invalid: '卡密无效或已失效，请联系客服获取有效卡密'
   },
   en: {
     title: 'iOS Location Spoofer',
+    back_home: 'Back',
     layer_satellite: 'Satellite', layer_amap: 'Amap', layer_color: 'Color', layer_standard: 'Standard', layer_dark: 'Dark',
     err_html: '<b>Module not active</b>Please check the following:<br>1. The iOS Location Spoofer module is installed and enabled<br>2. MITM is on and the certificate is trusted<br>3. The MITM hostname list includes gs-loc.apple.com<br>4. The current network is routed through the proxy',
     choose_title: 'Choose target location',
@@ -351,7 +421,21 @@ const I18N = {
     enter_place: 'Please enter a place name', searching: 'Searching...',
     not_found: function(q){ return 'Not found: ' + q; }, search_failed: 'Search failed',
     copied: function(x){ return 'Copied: ' + x; }, copy_failed: 'Copy failed, please select manually',
-    alt_unknown_copy: 'Altitude not ready, copied lat/lon only'
+    alt_unknown_copy: 'Altitude not ready, copied lat/lon only',
+    license_unactive_badge: 'Inactive',
+    license_active_badge: 'Active',
+    license_unactive_msg: 'License inactive · Features restricted',
+    license_active_msg: function(k, p){ return 'Licensed · ' + (p || 'VIP') + ' (' + k + ')'; },
+    license_btn_activate: 'Activate Key',
+    license_btn_change: 'Change Key',
+    license_modal_title: '🔐 License Activation',
+    license_modal_desc: 'Enter your card key to unlock location spoofing & device sync',
+    license_activate_btn: 'Activate Now',
+    license_contact_wc: 'Contact WeChat',
+    license_wc_copied: 'Copied WeChat: LLME-love, contact for license key',
+    license_active_success: '✓ License activated successfully!',
+    license_required: 'Please enter a valid card key to activate',
+    license_invalid: 'Invalid card key, please check and retry'
   }
 };
 
@@ -381,12 +465,224 @@ function applyI18n() {
   updateStatus();
   renderActive();
   renderFavs();
+  renderLicenseBar();
 }
 
 function setLang(l) {
   lang = l;
   try { localStorage.setItem(LANG_KEY, l); } catch(e) {}
   applyI18n();
+}
+
+/* ---- 卡密系统逻辑 ---- */
+const LICENSE_KEY = 'ils_license';
+
+function getLicenseData() {
+  try {
+    const raw = localStorage.getItem(LICENSE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (obj && obj.valid && obj.key) return obj;
+  } catch(e) {}
+  return null;
+}
+
+function isLicenseActive() {
+  return !!getLicenseData();
+}
+
+function renderLicenseBar() {
+  const lic = getLicenseData();
+  const card = document.getElementById('licenseCard');
+  const badge = document.getElementById('licenseBadge');
+  const text = document.getElementById('licenseText');
+  const btn = document.getElementById('licenseActionBtn');
+  if (!card) return;
+
+  if (lic) {
+    card.className = 'license-card active';
+    if (badge) {
+      badge.className = 'license-badge active';
+      badge.textContent = t('license_active_badge');
+    }
+    if (text) {
+      text.textContent = t('license_active_msg', lic.key, lic.plan);
+    }
+    if (btn) {
+      btn.className = 'license-btn-action subtle';
+      btn.textContent = t('license_btn_change');
+      btn.onclick = function() {
+        try { localStorage.removeItem(LICENSE_KEY); } catch(e) {}
+        renderLicenseBar();
+        openLicenseModal();
+      };
+    }
+  } else {
+    card.className = 'license-card unactive';
+    if (badge) {
+      badge.className = 'license-badge unactive';
+      badge.textContent = t('license_unactive_badge');
+    }
+    if (text) {
+      text.textContent = t('license_unactive_msg');
+    }
+    if (btn) {
+      btn.className = 'license-btn-action go';
+      btn.textContent = t('license_btn_activate');
+      btn.onclick = function() { openLicenseModal(); };
+    }
+  }
+}
+
+function openLicenseModal(notice) {
+  const modal = document.getElementById('licenseModal');
+  const hint = document.getElementById('licenseModalHint');
+  const input = document.getElementById('modalLicenseInput');
+  if (hint && notice) hint.textContent = notice;
+  else if (hint) hint.textContent = t('license_modal_desc');
+  if (input) input.value = '';
+  if (modal) modal.classList.add('show');
+  if (input) setTimeout(function() { input.focus(); }, 150);
+}
+
+function closeLicenseModal() {
+  const modal = document.getElementById('licenseModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem('ils_device_id');
+  if (!id) {
+    id = 'DEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    localStorage.setItem('ils_device_id', id);
+  }
+  return id;
+}
+
+function getDeviceName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/i.test(ua)) return 'iPhone / Safari';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) return 'Android';
+  if (/Mac/i.test(ua)) return 'Mac / Browser';
+  if (/Windows/i.test(ua)) return 'Windows / Browser';
+  return 'Web Client';
+}
+
+async function verifyAndBindKey(keyVal, silent) {
+  if (!keyVal) return false;
+  const mismatchBox = document.getElementById('modalMismatchBox');
+  const mismatchDesc = document.getElementById('modalMismatchDesc');
+  if (mismatchBox) mismatchBox.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/verify-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: keyVal,
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      const err = new Error(data.error || t('license_invalid'));
+      err.data = data;
+      throw err;
+    }
+    localStorage.setItem(LICENSE_KEY, JSON.stringify(data));
+    renderLicenseBar();
+    closeLicenseModal();
+    if (!silent) toast(t('license_active_success'));
+    return true;
+  } catch(err) {
+    const d = err.data;
+    if (d && d.code === 'DEVICE_MISMATCH') {
+      openLicenseModal();
+      const mInput = document.getElementById('modalLicenseInput');
+      if (mInput) mInput.value = keyVal;
+      if (mismatchBox) {
+        mismatchBox.style.display = 'block';
+        if (mismatchDesc) {
+          mismatchDesc.textContent = '该卡密已在设备 [' + (d.boundDeviceName || '其他设备') + '] 绑定。已换绑 ' + (d.unbindCount || 0) + ' / ' + (d.maxUnbinds ?? 5) + ' 次。如需更换到本机，请点击下方换绑。';
+        }
+      }
+      toast('卡密已绑定其他设备，请点击换绑');
+    } else {
+      if (!silent) toast(err.message || t('license_invalid'));
+    }
+    return false;
+  }
+}
+
+async function submitModalUnbind() {
+  const input = document.getElementById('modalLicenseInput');
+  const btn = document.getElementById('modalSelfUnbindBtn');
+  const val = (input ? input.value : '').trim().toUpperCase();
+  if (!val) {
+    toast(t('license_required'));
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '换绑处理中…';
+  }
+  try {
+    const res = await fetch('/api/unbind-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: val }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '换绑失败');
+    }
+    toast('✓ 换绑成功！正在为您自动绑定当前设备...');
+    const mismatchBox = document.getElementById('modalMismatchBox');
+    if (mismatchBox) mismatchBox.style.display = 'none';
+    setTimeout(() => {
+      verifyAndBindKey(val, false);
+    }, 500);
+  } catch(err) {
+    toast(err.message || '换绑操作失败');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 立即换绑到当前设备';
+    }
+  }
+}
+
+async function submitModalLicense() {
+  const input = document.getElementById('modalLicenseInput');
+  const btn = document.getElementById('modalLicenseSubmitBtn');
+  const val = (input ? input.value : '').trim().toUpperCase();
+  if (!val) {
+    toast(t('license_required'));
+    if (input) input.focus();
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  try {
+    await verifyAndBindKey(val, false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = t('license_activate_btn');
+    }
+  }
+}
+
+function copyContactWechat() {
+  copyText('LLME-love').then(function() {
+    toast(t('license_wc_copied'));
+  }).catch(function() {
+    prompt('请复制客服微信号：', 'LLME-love');
+  });
 }
 
 const map = L.map('map').setView([20, 0], 2);
@@ -533,6 +829,7 @@ function moduleParamString() {
 }
 
 function copyParams(btn) {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   if (!selected) { toast(t('pick_first')); return; }
   const s = moduleParamString();
   copyText(s).then(() => {
@@ -687,12 +984,15 @@ function clearActive() {
 }
 
 async function save() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   if (!selected) { toast(t('pick_first')); return; }
   const btn = document.getElementById('saveBtn');
   btn.textContent = t('saving'); btn.disabled = true;
   showError(false);
   try {
+    const lic = getLicenseData();
     let url = SAVE_API + '?lon=' + lon + '&lat=' + lat;
+    if (lic && lic.key) url += '&key=' + encodeURIComponent(lic.key);
     const a = currentAlt(); if (a !== null) url += '&alt=' + a;
     url += '&hacc=' + haccVal() + '&vacc=' + vaccVal() + '&randomRadius=' + jitterVal();
     const r = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
@@ -738,6 +1038,7 @@ function parseLocalCoords(text) {
 }
 
 async function parseUrl() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   const input = document.getElementById('urlInput').value.trim();
   if (!input) return toast(t('paste_first'));
   toast(t('parsing'));
@@ -759,6 +1060,7 @@ async function parseUrl() {
 
 let searchResults = [];
 async function searchPlace() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   const q = document.getElementById('searchInput').value.trim();
   if (!q) return toast(t('enter_place'));
   const box = document.getElementById('searchResults');
@@ -783,6 +1085,7 @@ function selectSearchResult(i) {
   toast((p.display_name || '').slice(0, 40));
 }
 function restoreReal() {
+  if (!isLicenseActive()) { openLicenseModal(t('license_required')); return; }
   fetch(SAVE_API + '?action=clear', { method:'GET', mode:'cors', cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -806,9 +1109,24 @@ document.addEventListener('paste', e => {
 document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') searchPlace(); });
 document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') parseUrl(); });
 document.getElementById('favNameInput').addEventListener('keydown', e => { if(e.key==='Enter') confirmFav(); });
+const mli = document.getElementById('modalLicenseInput'); if(mli) mli.addEventListener('keydown', e => { if(e.key==='Enter') submitModalLicense(); });
 
 applyI18n();
 queryActive();
+renderLicenseBar();
+
+// URL 卡密自动校验激活与选点网页卡密鉴权守护
+(function checkPageAuth() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryKey = (urlParams.get('key') || '').trim().toUpperCase();
+  if (queryKey) {
+    verifyAndBindKey(queryKey, false);
+  } else if (!isLicenseActive()) {
+    setTimeout(() => {
+      openLicenseModal('⚠️ 请先输入卡密激活授权后使用选点系统');
+    }, 350);
+  }
+})();
 <\/script>
 </body>
 </html>`;

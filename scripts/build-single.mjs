@@ -59,6 +59,8 @@ class Hono {
 const out = [
   header,
   honoShim,
+  "/* ==== inlined from src/store.js ==== */", readSrc("store.js"),
+  "/* ==== inlined from src/admin.js ==== */", readSrc("admin.js"),
   "/* ==== inlined from src/parse.js ==== */", readSrc("parse.js"),
   "/* ==== inlined from src/icons.js ==== */", readSrc("icons.js"),
   "/* ==== inlined from src/modules.js ==== */", readSrc("modules.js"),
