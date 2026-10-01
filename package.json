@@ -10,15 +10,11 @@
     "build:pages": "node scripts/build-single.mjs",
     "build:single": "node scripts/build-single.mjs",
     "start": "node server.js",
-    "deploy": "wrangler deploy",
     "icons": "python3 scripts/gen_icons.py",
     "gen:modules": "node scripts/gen-modules.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "hono": "^4.10.6"
-  },
-  "devDependencies": {
-    "wrangler": "^4.145.0"
   }
 }
