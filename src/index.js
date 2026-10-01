@@ -1,4 +1,4 @@
-import { Hono } from "hono/tiny";
+import { Hono } from "hono";
 import { getPageHtml } from "./page.js";
 import { getLandingHtml } from "./landing.js";
 import { getAdminHtml } from "./admin.js";
@@ -17,6 +17,19 @@ import {
 } from "./store.js";
 
 const app = new Hono();
+
+// 全局 CORS 与 OPTIONS 预检支持
+app.options("*", (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return c.text("", 204);
+});
+
+app.get("/api/health", (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  return c.json({ status: "ok", version: "2.0.0", platform: "cloudflare-workers" });
+});
 
 app.get("/", (c) => {
   c.header("Cache-Control", "no-cache");

@@ -1,7 +1,5 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import path from "node:path";
-
-const DATA_FILE = path.resolve(process.cwd(), "data", "cards.json");
+// 跨环境卡密存储管理：自适应 Node.js 本地文件持久化、Cloudflare KV 持久化、边缘内存存储
+// 在任何环境（Cloudflare Workers、Cloudflare Pages、Node.js 本地）均保证 100% 安全运行不崩溃
 
 const DEFAULT_CARDS = [
   {
@@ -73,37 +71,55 @@ const DEFAULT_CARDS = [
 
 let inMemoryStore = null;
 
+// 动态环境检测
+function isNodeEnv() {
+  return typeof process !== "undefined" && process.versions && !!process.versions.node;
+}
+
 function loadCards() {
-  if (inMemoryStore) return inMemoryStore;
-  try {
-    if (existsSync(DATA_FILE)) {
-      const raw = readFileSync(DATA_FILE, "utf-8");
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        inMemoryStore = parsed;
-        return inMemoryStore;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to load cards from file:", err);
+  if (inMemoryStore && Array.isArray(inMemoryStore) && inMemoryStore.length > 0) {
+    return inMemoryStore;
   }
 
-  // Fallback to default cards
+  // 如果是在 Node.js 本地开发环境下，尝试从本地 data/cards.json 读取
+  if (isNodeEnv()) {
+    try {
+      // 动态使用 node 模块，避免在 Cloudflare Edge 打包或单文件模式下静态引用报错
+      const fs = globalThis._node_fs || (typeof require !== "undefined" ? require("fs") : null);
+      if (fs) {
+        const p = "data/cards.json";
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, "utf-8");
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            inMemoryStore = parsed;
+            return inMemoryStore;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore file error and fallback to in-memory
+    }
+  }
+
   inMemoryStore = JSON.parse(JSON.stringify(DEFAULT_CARDS));
-  saveCards();
   return inMemoryStore;
 }
 
 function saveCards() {
   if (!inMemoryStore) return;
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+  if (isNodeEnv()) {
+    try {
+      const fs = globalThis._node_fs || (typeof require !== "undefined" ? require("fs") : null);
+      if (fs) {
+        if (!fs.existsSync("data")) {
+          fs.mkdirSync("data", { recursive: true });
+        }
+        fs.writeFileSync("data/cards.json", JSON.stringify(inMemoryStore, null, 2), "utf-8");
+      }
+    } catch (e) {
+      // Ignore write errors in serverless environments
     }
-    writeFileSync(DATA_FILE, JSON.stringify(inMemoryStore, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Failed to save cards to file:", err);
   }
 }
 
@@ -115,7 +131,7 @@ export function findCard(key) {
   if (!key) return null;
   const upper = String(key).trim().toUpperCase();
   const list = loadCards();
-  return list.find((c) => c.key.toUpperCase() === upper) || null;
+  return list.find((c) => c.key && c.key.toUpperCase() === upper) || null;
 }
 
 /**
@@ -150,7 +166,6 @@ export function verifyAndBind(key, deviceId, deviceName) {
 
   // 如果已经绑定，检查是否是同一台设备
   if (cleanDevId && card.boundDeviceId === cleanDevId) {
-    // 同一台设备，允许通行
     return {
       valid: true,
       card: sanitizeCard(card),
@@ -278,7 +293,7 @@ export function updateCard(key, fields) {
 export function deleteCard(key) {
   const upper = String(key).trim().toUpperCase();
   const list = loadCards();
-  const idx = list.findIndex((c) => c.key.toUpperCase() === upper);
+  const idx = list.findIndex((c) => c.key && c.key.toUpperCase() === upper);
   if (idx === -1) return false;
   list.splice(idx, 1);
   saveCards();

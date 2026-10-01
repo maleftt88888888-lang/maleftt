@@ -1,12 +1,16 @@
 {
+  "name": "maleftt",
+  "version": "2.0.0",
   "type": "module",
+  "description": "iOS Location Spoofer - Cloudflare Workers / Pages & Node.js Fullstack Deployment",
+  "main": "src/index.js",
   "scripts": {
     "dev": "node server.js",
     "build": "node scripts/build-single.mjs",
-    "start": "node server.js",
-    "lint": "node --check server.js src/*.js",
-    "deploy": "npx wrangler deploy --minify",
+    "build:pages": "node scripts/build-single.mjs",
     "build:single": "node scripts/build-single.mjs",
+    "start": "node server.js",
+    "deploy": "wrangler deploy",
     "icons": "python3 scripts/gen_icons.py",
     "gen:modules": "node scripts/gen-modules.mjs"
   },
@@ -14,5 +18,7 @@
     "@hono/node-server": "^2.1.1",
     "hono": "^4.10.6"
   },
-  "name": "maleftt"
+  "devDependencies": {
+    "wrangler": "^4.145.0"
+  }
 }
